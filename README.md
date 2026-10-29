@@ -15,7 +15,8 @@ Claude API key from [platform.claude.com](https://platform.claude.com/settings/k
 | **Windows** 10 / 11 | [JobEstimator-Windows-Setup.exe](https://github.com/Rbuilder1/job-estimator-download/releases/latest/download/JobEstimator-Windows-Setup.exe) |
 | **Mac** (Apple Silicon, M1 or newer) | [JobEstimator-mac.dmg](https://github.com/Rbuilder1/job-estimator-download/releases/latest/download/JobEstimator-mac.dmg) |
 | **Android** | [JobEstimator-Android.apk](https://github.com/Rbuilder1/job-estimator-download/releases/latest/download/JobEstimator-Android.apk) |
-| **iPhone / iPad** (advanced) | [JobEstimator-iPhone-unsigned.ipa](https://github.com/Rbuilder1/job-estimator-download/releases/latest/download/JobEstimator-iPhone-unsigned.ipa) |
+| **iPhone / iPad** | **[Open the web app](https://rbuilder1.github.io/job-estimator-download/)** in Safari, then Share → Add to Home Screen |
+| iPhone app (advanced) | [JobEstimator-iPhone-unsigned.ipa](https://github.com/Rbuilder1/job-estimator-download/releases/latest/download/JobEstimator-iPhone-unsigned.ipa) |
 
 None of these come from an app store, so each one asks you to confirm once:
 
@@ -43,7 +44,19 @@ None of these come from an app store, so each one asks you to confirm once:
 
 ## iPhone / iPad
 
-There's no App Store version yet, so the iPhone app has to be installed from a computer
+1. On the iPhone, open **https://rbuilder1.github.io/job-estimator-download/** in **Safari**.
+2. Tap the **Share** button, then **Add to Home Screen**, then **Add**.
+3. Open **Estimator** from the home screen. It runs full-screen like an app, works offline,
+   and updates itself. Nothing to sign or reinstall.
+
+Estimates with Claude, 📐 Quick estimate and the 🤖 local agent (reading your notes) all work.
+The before/after previews and the PC's photo-reading AI need one of the installed apps,
+because a web app can't reach the PC. Your Claude key is kept in Safari on that phone only.
+For 🎤 Talk, if Safari's speech recognition isn't available, use the 🎤 on the keyboard.
+
+### The installed iPhone app (advanced)
+
+There's no App Store version yet, so the installed iPhone app has to be put on from a computer
 with a free tool and your Apple ID:
 
 1. Install **Sideloadly** on a Windows PC or Mac, and plug in the iPhone.

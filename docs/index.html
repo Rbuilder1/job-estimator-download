@@ -1,0 +1,1679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Job Estimator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Estimator">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1d2026">
+<script src="prompts.js"></script>
+<script src="web-native.js"></script>
+<script src="ios-backend.js"></script>
+
+<style>
+:root{
+  --bg:#14161a;--panel:#1d2026;--panel2:#252931;--line:#323742;--text:#e9ebef;--muted:#9aa1ad;
+  --accent:#f2a33a;--accent2:#ffcf7a;--good:#5cc28a;--bad:#e76f6f;--input:#111317;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:18px;margin:0;letter-spacing:.3px}
+header h1 b{color:var(--accent)}
+header .sp{flex:1}
+#status{font-size:12px;color:var(--muted)}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 12px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#1a1205;border-color:var(--accent);font-weight:600}
+button.primary:disabled{opacity:.5;cursor:wait}
+#who{display:flex;margin-top:14px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#who button{flex:1;border:0;border-radius:0;padding:8px 6px;background:var(--input);color:var(--muted)}
+#who button+button{border-left:1px solid var(--line)}
+#who button.on{background:var(--panel2);color:var(--accent2);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+#whoMsg{font-size:12px;margin-top:5px;color:var(--muted)}
+main{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit}
+textarea{min-height:90px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#drop{border:2px dashed var(--line);border-radius:10px;padding:22px 10px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s}
+#drop.over{border-color:var(--accent);color:var(--accent2);background:#f2a33a10}
+#thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.thumb{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);text-align:center;padding:4px}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .x{position:absolute;top:2px;right:2px;background:#000a;border:0;padding:0 6px;border-radius:4px;font-size:12px}
+.check{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--text)}
+.check input{width:auto}
+#go{width:100%;margin-top:14px;padding:11px}
+#empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:420px;color:var(--muted);text-align:center}
+#empty .big{font-size:42px;margin-bottom:6px}
+.spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;margin-bottom:12px}
+@keyframes s{to{transform:rotate(360deg)}}
+.err{color:var(--bad);white-space:pre-wrap}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel2);border-radius:8px;padding:10px 12px}
+.kpi .v{font-size:22px;font-weight:700}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.kpi.total .v{color:var(--accent)}
+.title-row{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:6px}
+.title-row h2{font-size:20px;color:var(--text);text-transform:none;letter-spacing:0;margin:0;flex:1}
+.pill{font-size:11px;padding:3px 8px;border-radius:20px;background:var(--panel2);color:var(--muted)}
+.pill.low{color:var(--bad)}.pill.medium{color:var(--accent2)}.pill.high{color:var(--good)}
+.section{margin-top:18px}
+.section h3{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.section h3 .sp{flex:1}
+.section h3 button{font-size:11px;padding:3px 8px;text-transform:none;letter-spacing:0}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:6px;border-bottom:1px solid var(--line)}
+.tbl td{padding:3px 4px;border-bottom:1px solid #262a32;vertical-align:top}
+.tbl td.num,.tbl th.num{text-align:right;white-space:nowrap}
+.tbl input{background:transparent;border:1px solid transparent;padding:4px 5px;border-radius:4px}
+.tbl input:hover,.tbl input:focus{border-color:var(--line);background:var(--input)}
+.tbl input.n{text-align:right;width:80px}
+.tbl .sub{color:var(--muted);font-size:11px;padding:0 6px 4px}
+.tbl .src.found{color:var(--good)}
+.tbl .src.est{color:var(--accent2)}
+.tbl .sub.up{color:var(--bad)}
+.tbl .sub.down{color:var(--good)}
+.tbl tr.cat td{color:var(--accent2);font-weight:600;padding-top:10px;font-size:12px}
+.tbl .del{padding:1px 7px;font-size:12px;opacity:.5}
+.tbl .del:hover{opacity:1;border-color:var(--bad)}
+.tot{max-width:420px;margin-left:auto}
+.tot td{padding:5px 6px}
+.tot tr.grand td{font-size:18px;font-weight:700;color:var(--accent);border-top:2px solid var(--line)}
+.tot input.n{width:64px}
+ul.plain{margin:0;padding-left:18px}
+ul.plain li{margin:2px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.muted{color:var(--muted)}
+#saved{max-height:240px;overflow:auto}
+#saved div{padding:6px 4px;border-bottom:1px solid #262a32;cursor:pointer;font-size:13px;display:flex;gap:8px}
+#saved div:hover{color:var(--accent2)}
+#saved div span:first-child{flex:1}
+#printhead{display:none}
+select.pick{width:auto;padding:3px 6px;font-size:12px;text-transform:none;letter-spacing:0}
+.mic{font-size:12px;padding:3px 10px;border-radius:14px;margin-left:8px;vertical-align:middle;text-transform:none;letter-spacing:0}
+.mic.on{background:var(--bad);border-color:var(--bad);color:#fff;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.6}}
+.talkmsg{font-size:12px;color:var(--muted);margin-top:4px;min-height:0}
+@media(max-width:600px){
+  header{flex-wrap:wrap;padding:10px 12px;gap:8px}
+  main{padding:10px}
+  .section{overflow-x:auto}
+  .tbl{font-size:12px}
+  .kpi .v{font-size:18px}
+}
+.pvpick{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.pvpick img{width:72px;height:54px;object-fit:cover;border-radius:5px;border:2px solid transparent;cursor:pointer;opacity:.7}
+.pvpick img.on{border-color:var(--accent);opacity:1}
+.pvrow{display:grid;grid-template-columns:1fr 220px;gap:10px;align-items:end}
+@media(max-width:700px){.pvrow{grid-template-columns:1fr}}
+.pvrow textarea{min-height:58px}
+.pvrow input[type=range]{padding:0;accent-color:var(--accent)}
+.pvlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-top:12px}
+.cmp{position:relative;border-radius:8px;overflow:hidden;background:#000;user-select:none}
+.cmp img{display:block;width:100%}
+.cmp .b{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cmp input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+.cmp .bar{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #000;pointer-events:none}
+.cmp .tag{position:absolute;top:6px;font-size:11px;background:#000a;color:#fff;padding:2px 7px;border-radius:10px;pointer-events:none}
+.pvcap{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-top:4px}
+.pvcap span{flex:1}
+.pvprint{display:none}
+#show{position:fixed;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}
+#show[hidden]{display:none}
+#show .cmp{max-width:min(96vw,calc((100vh - 110px) * var(--ar)));width:100%;border-radius:10px}
+#show .cmp .tag{font-size:15px;padding:4px 12px;top:12px}
+#show .cmp .tag:first-of-type{left:12px!important}
+#show .cmp .tag:last-of-type{right:12px!important}
+#show .cmp .bar{width:3px}
+#show .cap{color:#bbb;font-size:13px;margin-top:10px;text-align:center}
+#show .cap b{color:#fff;font-size:17px;display:block;margin-bottom:2px}
+#show .x{position:absolute;top:12px;right:14px;font-size:16px}
+#show .nav{position:absolute;top:50%;transform:translateY(-50%);font-size:22px;padding:10px 14px;background:#0008}
+#pvOnly{width:100%;margin-top:8px}
+#snapBtn{width:100%;padding:13px;font-size:15px;margin-bottom:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips button{font-size:12px;padding:4px 10px;border-radius:14px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:20px;width:min(460px,92vw)}
+dialog::backdrop{background:#000a}
+dialog h2{margin:0 0 6px;font-size:16px}
+dialog a{color:var(--accent2)}
+@media print{
+  body{background:#fff;color:#000;font-size:11px}
+  header,aside,.toolbar,.del,.noprint,.section h3 button{display:none!important}
+  main{display:block;padding:0}
+  .card{border:0;padding:0;background:#fff}
+  .kpi{background:#f3f3f3}
+  .kpi.total .v,.tot tr.grand td{color:#000}
+  .tbl input{border:0!important;color:#000;padding:0}
+  .section h3{color:#000}
+  .tbl tr.cat td{color:#000}
+  #printhead{display:block;border-bottom:2px solid #000;margin-bottom:12px;padding-bottom:8px}
+  .pill{display:none}
+  .cmp{display:none}
+  .pvprint{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .pvprint img{width:100%;border:1px solid #999}
+  .pvlist{grid-template-columns:1fr}
+  .pvlist>div{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>▲</b> Job Estimator</h1>
+  <span id="status">checking…</span>
+  <span class="sp"></span>
+  <button id="newBtn">New estimate</button>
+  <button id="shareBtn" title="Send someone the download link">📤 Share app</button>
+  <button id="settingsBtn" title="Settings">⚙ Settings</button>
+</header>
+
+<dialog id="shareDlg">
+  <h2>Share Job Estimator</h2>
+  <div class="muted" style="font-size:13px">Anyone can download it for Windows, Mac, Android or iPhone from this page.
+    They'll need their own Claude API key; the page shows how.</div>
+  <div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap">
+    <img alt="QR code for the download page" style="width:150px;height:150px;border-radius:8px;background:#fff;image-rendering:pixelated"
+      src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASgAAAEoAQAAAADDfFG0AAAB8UlEQVR4nO2aa47DQAiDoer9r8wKGzNJN7vqAeyqeU1/fTIEmGbFF3p986PwrySTkN4RyavKqGy3ZUVG8cQV81q9wSNELRtZVmWCm1bsryuvJlIwWH8JbAhyxbzuvCig2vSP0JTsrwcSBWQRHYsfMq+bv0p37a9O+xuIs2JeK6Qqsfr8UFXm9ZCmEvVEntg8S+a1KviocMXrMR0cxkX766ghnXOd+4GGC/tLek2lWn0sHFlVTP3KBfOS2AFFXZLZJXGh3Devz/6xkn1QP5hCAjd41PjsL+lNKsVeO7vp7sdouKf+KsfjPX8habXD5kWpwOxmkvzsL+k178AYUJP456C8b15Sk6i20UwjEJKKxm2IzGuFKjWu7dBpkWQ9119HLFOLBSvJHXBTwJrXPX8VJoUcqe4gbMbTrr8e5/e1VaqG+DQXyzHnr1VHXylpsWlU1cUV94+/4jFZSWynzfk9XpS0n/0lNQmkqc5fnKui7R63DTrzkrAbFAPt2hL1ueV8/7t/bGlwD1yzwbZ7ufbXw/520GlqtC87tub1z/52INUPumFnf62mqi8VFqcZ4jIKf/N63N8ODlTXVvo7hf21ujsnNzBFjW9L+0t6XfeGgtGH/hEjRE12zOt5fzvUEO3mo+cTd93+hvOn7C/JJKTvSPwATaMwy9g5ADMAAAAASUVORK5CYII=">
+    <div style="flex:1;min-width:180px;font-size:13px">Point a phone's camera at the code to open the download page.</div>
+  </div>
+  <input id="shareLink" readonly style="margin-top:12px">
+  <div id="shareMsg" class="muted" style="font-size:12px;margin-top:6px;min-height:16px"></div>
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+    <button class="primary" id="shareSheet" hidden>Share…</button>
+    <button class="primary" id="shareCopy">Copy link</button>
+    <button id="shareEmail">Email it</button>
+    <span style="flex:1"></span>
+    <button id="shareClose">Close</button>
+  </div>
+</dialog>
+
+<dialog id="pricesDlg" style="width:min(640px,94vw)">
+  <h2>Quick-estimate prices</h2>
+  <div class="muted" style="font-size:12px;margin-bottom:8px">What 📐 Quick estimate charges for each material, before the Material grade
+    (economy x0.8, high-end x1.45 on finishes). Set them to your supplier's prices.</div>
+  <div style="max-height:60vh;overflow:auto"><table class="tbl"><tbody id="pricesBody"></tbody></table></div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="primary" id="pricesSave">Save</button><button id="pricesCancel">Cancel</button>
+    <span style="flex:1"></span><button id="pricesReset">Back to the built-in prices</button>
+  </div>
+</dialog>
+
+<dialog id="settings">
+  <h2>Settings</h2>
+  <label>Claude API key</label>
+  <input id="keyIn" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+  <div class="muted" style="font-size:12px;margin-top:6px"><span id="keyNow"></span> Get a key at
+    <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com</a>
+    (Create key, copy it, then paste it here). Leave blank to keep the current one.</div>
+  <div id="keyMsg" style="font-size:12px;margin-top:6px"></div>
+  <label>Company name (printed on estimates)</label>
+  <input id="companyIn">
+  <label>Who does "Estimate this job"</label>
+  <select id="engineIn"><option value="">Claude if there's a key, else the local agent</option><option value="claude">Claude (best: measures from photos, live prices)</option>
+    <option value="local">Local agent (free, offline: rules + local AI + calculator)</option></select>
+  <label>Quick estimate (no AI)</label>
+  <button id="pricesBtn" type="button">Edit the price table…</button>
+  <div id="linkPC" hidden>
+    <label>Phone app</label>
+    <div class="muted" style="font-size:12px">To make previews from the Job Estimator phone app, enter this in the phone's Settings
+      (phone on the same Wi-Fi, this app open):<br>PC address <b id="linkAddr" style="color:var(--text)"></b> · link code <b id="linkCode" style="color:var(--text)"></b></div>
+  </div>
+  <div id="linkPhone" hidden>
+    <label>PC for previews <span class="muted">(shown in Settings on the PC)</span></label>
+    <div class="row"><input id="pcIn" placeholder="PC address, e.g. 192.168.1.13" inputmode="decimal">
+      <input id="codeIn" placeholder="Link code" autocomplete="off" spellcheck="false"></div>
+    <div id="linkMsg" class="muted" style="font-size:12px;margin-top:6px"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button class="primary" id="saveSettings">Save</button>
+    <button id="closeSettings">Cancel</button>
+    <span style="flex:1"></span>
+    <button id="removeKey" hidden>Remove saved key</button>
+  </div>
+</dialog>
+
+<main>
+<aside>
+  <div class="card">
+    <button class="primary" id="snapBtn">📸 Take a picture &amp; preview the job</button>
+    <input type="file" id="snapFile" accept="image/*" capture="environment" hidden>
+    <h2>1 · Photos or plans</h2>
+    <div id="drop">Drop room photos or plans here<br><small>JPG / PNG / PDF · or click to pick · paste works too</small></div>
+    <input type="file" id="file" accept="image/*,application/pdf" multiple hidden>
+    <div id="thumbs"></div>
+
+    <h2 style="margin-top:16px">2 · What's the job? <button class="mic" data-talk="notes" title="Say what needs to be done">🎤 Talk</button></h2>
+    <div class="talkmsg" id="talkmsg-notes"></div>
+    <textarea id="notes" placeholder="e.g. Gut the bathroom, new tub surround in 12x24 porcelain, vanity, LVP floor, paint. Keep the window."></textarea>
+    <div class="row">
+      <div><label>Job type</label>
+        <select id="job_type">
+          <option value="">Let Claude decide</option>
+          <option>Bathroom remodel</option><option>Kitchen remodel</option>
+          <option>Flooring</option><option>Interior painting</option><option>Drywall / finish</option>
+          <option>Basement finish</option><option>Addition</option><option>Deck</option>
+          <option>Roofing</option><option>Siding</option><option>Windows / doors</option>
+          <option>New construction</option><option>General renovation</option>
+        </select></div>
+      <div><label>Material grade</label>
+        <select id="grade"><option>economy</option><option selected>mid-grade</option><option>high-end</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>Location</label><input id="location" value="Hudson Valley, NY"></div>
+      <div><label>Labor $/hr</label><input id="labor_rate" type="number" value="75" min="0"></div>
+    </div>
+    <label>Supplier <span class="muted">(where materials are priced)</span></label>
+    <select id="supplierSel"></select>
+    <input id="supplier" value="Home Depot" placeholder="Type the supplier's name" hidden style="margin-top:6px">
+    <label class="check"><input type="checkbox" id="live_prices" checked> Look up the supplier's current prices online (slower)</label>
+    <label>Your price list or supplier quote <span class="muted">(optional - used first)</span></label>
+    <textarea id="price_list" style="min-height:60px" placeholder="Paste a supplier quote or your account prices, e.g.&#10;2x4x8 SPF stud  4.29&#10;1/2&quot; 4x8 drywall  16.48"></textarea>
+    <div id="who" role="group" aria-label="Who estimates">
+      <button type="button" data-engine="local" title="Free, offline: rules read your notes, the local AI looks at photos, the calculator prices it">🤖 Local agent</button>
+      <button type="button" data-engine="claude" title="Claude measures from the photos and looks up live supplier prices (needs your Claude API key)">✦ Claude</button>
+    </div>
+    <div id="whoMsg"></div>
+    <button class="primary" id="go">Estimate this job</button>
+    <button id="quickBtn" style="width:100%;margin-top:8px" title="Enter sizes and pick the work - no AI or API key needed">📐 Quick estimate (no AI)</button>
+    <button id="pvOnly" title="Uses the image generator on this PC - no API key needed">🎨 Just show what it will look like</button>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Saved estimates</h2>
+    <div id="saved"><span class="muted">None yet.</span></div>
+  </div>
+</aside>
+
+<section class="card" id="out">
+  <div id="empty"><div class="big">📐</div>Add a couple of photos of the room or the plans,<br>say what you're doing, and hit <b>Estimate this job</b>.<br><br><small>You get measurements, a full material takeoff, labor by trade, and a priced total you can edit.</small></div>
+</section>
+</main>
+
+<div id="show" hidden>
+  <button class="x" id="showX">✕ Close</button>
+  <button class="nav" id="showPrev" style="left:14px">‹</button><button class="nav" id="showNext" style="right:14px">›</button>
+  <div class="cmp" id="showCmp"></div>
+  <div class="cap" id="showCap"></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const money = n => (isFinite(n) ? n : 0).toLocaleString("en-US", {style: "currency", currency: "USD"});
+const money0 = n => (isFinite(n) ? n : 0).toLocaleString("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0});
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LS = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const LSset = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let files = [];          // {name, type, data(base64), preview}
+let est = null;          // the estimate from Claude (edited in place)
+let rates = Object.assign({mat_overhead: 0, markup: 20, contingency: 10, tax: 8.125, company: "R.E. Buotte Construction"}, LS("je_rates") || {});
+let doc = {id: "", client: "", address: ""};
+
+// ---- settings remembered per machine
+for (const k of ["location", "labor_rate", "grade", "supplier", "price_list"]) {
+  const v = LS("je_" + k); if (v != null) $("#" + k).value = v;
+  $("#" + k).addEventListener("change", e => LSset("je_" + k, e.target.value));
+}
+
+const H = {"Content-Type": "application/json", "X-Job-Estimator": "1"};
+
+// ---- settings dialog: API key + company name
+let keyStatus = {};
+async function refreshStatus(first) {
+  try {
+    keyStatus = await fetch("/api/status").then(r => r.json());
+    $("#status").innerHTML = keyStatus.key ? `Claude connected · <span class="muted">${esc(keyStatus.model)}</span>`
+      : `<span class="muted">No Claude key - 🤖 the local agent estimates${keyStatus.local_ai ? ` (photos: ${esc(keyStatus.local_ai === "PC" ? "the PC's AI" : keyStatus.local_ai)})` : ""}</span>`;
+    engineLabel();
+    if (keyStatus.web) $("#snapBtn").hidden = $("#pvOnly").hidden = true;  // previews need the PC, which a web app can't reach
+    if (keyStatus.mobile) $("#drop").innerHTML = "📷 Tap to take or pick photos<br><small>photos of the room, or the plans (JPG / PNG / PDF)</small>";
+
+  } catch { $("#status").textContent = "server offline"; }
+}
+function openSettings() {
+  $("#keyIn").value = ""; $("#keyMsg").textContent = "";
+  $("#keyNow").textContent = keyStatus.web && keyStatus.key ? "A key is saved in this browser on this phone only."
+    : keyStatus.key_source === "app" ? "A key is saved in this app (encrypted to your Windows account)."
+    : keyStatus.key_source === "environment" ? "Using the ANTHROPIC_API_KEY from your Windows environment." : "No key saved yet.";
+  $("#removeKey").hidden = keyStatus.key_source !== "app";
+  $("#companyIn").value = rates.company || "";
+  $("#engineIn").value = LS("je_engine") || "";
+  $("#linkPC").hidden = !keyStatus.link; $("#linkPhone").hidden = !(keyStatus.mobile || keyStatus.remote) || !!keyStatus.web;
+  if (keyStatus.link) { $("#linkAddr").textContent = keyStatus.link.addresses.join(" or ") || "(not on a network)"; $("#linkCode").textContent = keyStatus.link.code; }
+  if (keyStatus.mobile || keyStatus.remote) { $("#pcIn").value = keyStatus.pc || ""; $("#codeIn").value = ""; $("#codeIn").placeholder = keyStatus.pc ? "Link code (saved)" : "Link code"; $("#linkMsg").textContent = ""; }
+  $("#settings").showModal();
+}
+async function postKey(key) {
+  $("#keyMsg").textContent = key ? "Checking the key with Anthropic…" : "";
+  const r = await fetch("/api/key", {method: "POST", headers: H, body: JSON.stringify({key})});
+  const j = await r.json();
+  if (!r.ok) { $("#keyMsg").innerHTML = `<span class="err">${esc(j.error)}</span>`; return false; }
+  await refreshStatus(); return true;
+}
+$("#settingsBtn").onclick = openSettings;
+
+// ---- Supplier: Hudson Valley yards to switch between (each one's lookup rules are in estimator.py's
+// SUPPLIERS). #supplier stays the one value everything reads; the dropdowns just set it.
+const SUPPLIERS = [
+  ["Home Depot", "homedepot.com prices"], ["Lowe's", "lowes.com prices"],
+  ["Williams Lumber", "Rhinebeck + 6 stores"], ["Herzog's", "Kingston (True Value)"],
+  ["Erie Materials", "Poughkeepsie - windows, doors, siding, roofing"], ["84 Lumber", "Newburgh"],
+  ["Builders FirstSource", "Middletown, Vails Gate, Congers, Mahopac"], ["Curtis Lumber", "Castleton-on-Hudson"],
+  ["Seekamp Lumber", "Middletown"], ["Heights Lumber Center", "New Windsor"], ["Page Lumber", "Poughkeepsie"],
+  ["Richards Building Supply", "Poughkeepsie - exterior products"]];
+const OTHER = "__other";
+function supplierOptions(current, long) {
+  const known = SUPPLIERS.some(([n]) => n === current);
+  return SUPPLIERS.map(([n, where]) => `<option value="${esc(n)}"${n === current ? " selected" : ""}>${esc(n)}${long ? " - " + esc(where) : ""}</option>`).join("")
+    + (known || !current ? "" : `<option value="${esc(current)}" selected>${esc(current)}</option>`)
+    + `<option value="${OTHER}">Other…</option>`;
+}
+function setSupplier(name) {
+  $("#supplier").value = name; LSset("je_supplier", name);
+  $("#supplierSel").innerHTML = supplierOptions(name, true);
+  $("#supplier").hidden = true;
+}
+$("#supplierSel").innerHTML = supplierOptions($("#supplier").value, true);
+$("#supplierSel").onchange = e => {
+  if (e.target.value === OTHER) { $("#supplier").hidden = false; $("#supplier").value = ""; $("#supplier").focus(); return; }
+  setSupplier(e.target.value);
+  if (est && !est._previewOnly) render();  // the Materials header follows
+};
+$("#supplier").addEventListener("change", e => { if (e.target.value.trim()) setSupplier(e.target.value.trim()); });
+
+// ---- 🎤 Talk: speech to text into a description box, with whatever the device has built in.
+// Android: Google's voice input screen. iPhone: Apple's speech recognition (tap again to stop).
+// Windows: Windows voice typing (Win+H) types straight into the box. Elsewhere the browser's own
+// speech recognition, and on a Mac without it, the Mac's dictation key.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let talking = null;  // {box, btn, stop}
+function addText(box, text) {
+  text = (text || "").trim(); if (!text) return;
+  box.value = (box.value.trim() ? box.value.trim() + " " : "") + text;
+  box.dispatchEvent(new Event("input", {bubbles: true}));
+}
+function talkMsg(box, text, err) {
+  const m = $("#talkmsg-" + box.id); if (m) m.innerHTML = err ? `<span class="err">${esc(text)}</span>` : esc(text);
+}
+function talkDone() {
+  if (!talking) return;
+  talking.btn.classList.remove("on"); talking.btn.textContent = "🎤 Talk"; talking = null;
+}
+async function talk(btn) {
+  const box = $("#" + btn.dataset.talk);
+  if (talking) { const t = talking; if (t.btn === btn) return t.stop(); }
+  box.focus();
+  const how = keyStatus.dictation;
+  if (how === "windows") {
+    talkMsg(box, "Windows voice typing is opening - talk, and your words go into the box. Press Win+H or click its mic to stop.");
+    return fetch("/api/dictate", {method: "POST", headers: H, body: "{}"});
+  }
+  if (how === "android") {
+    talkMsg(box, "Listening…");
+    const r = await fetch("/api/mobile/listen", {method: "POST", headers: H, body: "{}"});
+    const j = await r.json();
+    if (!r.ok) return talkMsg(box, j.error, true);
+    addText(box, j.text); return talkMsg(box, j.text ? "" : "Didn't catch anything - try again.");
+  }
+  if (how === "ios") {
+    const r = await fetch("/api/mobile/listen", {method: "POST", headers: H, body: JSON.stringify({start: true})});
+    const j = await r.json();
+    if (!r.ok) return talkMsg(box, j.error, true);
+    btn.classList.add("on"); btn.textContent = "■ Stop";
+    talkMsg(box, "Listening… tap Stop when you're done.");
+    talking = {box, btn, stop: async () => {
+      const r = await fetch("/api/mobile/listen", {method: "POST", headers: H, body: JSON.stringify({stop: true})});
+      const j = await r.json(); talkDone();
+      if (!r.ok) return talkMsg(box, j.error, true);
+      addText(box, j.text); talkMsg(box, j.text ? "" : "Didn't catch anything - try again.");
+    }};
+    return;
+  }
+  if (SR) {
+    const rec = new SR(); rec.lang = "en-US"; rec.continuous = true; rec.interimResults = false;
+    let heard = false;
+    rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) { heard = true; addText(box, e.results[i][0].transcript); } };
+    rec.onerror = e => {
+      talkDone();
+      if (how === "mac" || /not-allowed|service-not-allowed/.test(e.error))
+        talkMsg(box, how === "mac" ? "Use your Mac's dictation: with the cursor in the box, press the 🎤 / Fn key twice and talk." : "The microphone isn't allowed for this app.", how !== "mac");
+      else talkMsg(box, "Speech recognition stopped (" + e.error + ").", true);
+    };
+    rec.onend = () => { if (talking && talking.btn === btn) { talkDone(); if (!heard) talkMsg(box, ""); } };
+    try { rec.start(); } catch { return talkMsg(box, "Speech recognition couldn't start.", true); }
+    btn.classList.add("on"); btn.textContent = "■ Stop"; talkMsg(box, "Listening… tap Stop when you're done.");
+    talking = {box, btn, stop: () => rec.stop()};
+    return;
+  }
+  talkMsg(box, how === "mac" ? "Use your Mac's dictation: with the cursor in the box, press the 🎤 / Fn key twice and talk."
+                             : "This device has no speech recognition the app can use - try the microphone on your keyboard.");
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-talk]"); if (b) { e.preventDefault(); talk(b); } });
+
+// ---- 📐 Quick estimate: a takeoff from sizes you enter, with standard trade formulas. No AI and no
+// API key, so it works offline on every device. It builds the same estimate object Claude returns,
+// so totals, overhead, saving, printing and previews all work the same.
+// Prices: QUICK_PRICES (typical Hudson Valley big-box prices), editable in ⚙ Settings.
+
+const QUICK_PRICES = {
+  //            category        item                                spec                                  unit     price
+  drywall:      ["Drywall",     '1/2" drywall',                     "4x8 sheet",                          "sheet", 16.50],
+  drywall_mr:   ["Drywall",     '1/2" moisture-resistant drywall',  "4x8 sheet, for wet rooms",           "sheet", 21.00],
+  mud:          ["Drywall",     "All-purpose joint compound",       "4.5 gal bucket",                     "bucket", 22.00],
+  tape:         ["Drywall",     "Paper drywall tape",               "500 ft roll",                        "roll",   6.50],
+  dw_screws:    ["Drywall",     'Drywall screws 1-5/8"',            "5 lb box",                           "box",   32.00],
+  bead:         ["Drywall",     "Metal corner bead",                "8 ft",                               "ea",     4.50],
+  insulation:   ["Insulation",  "R-13 fiberglass batts",            '15" kraft-faced, 40 sf per bag',     "bag",   32.00],
+  primer:       ["Paint",       "PVA drywall primer",               "",                                   "gal",   22.00],
+  wall_paint:   ["Paint",       "Interior wall paint",              "eggshell",                           "gal",   45.00],
+  ceiling_paint:["Paint",       "Ceiling paint",                    "flat white",                         "gal",   35.00],
+  trim_paint:   ["Paint",       "Trim paint",                       "semi-gloss",                         "qt",    22.00],
+  paint_kit:    ["Paint",       "Painting supplies",                "rollers, brushes, tape, plastic, caulk", "room", 45.00],
+  lvp:          ["Flooring",    "Luxury vinyl plank",               "click-lock",                         "sf",     2.99],
+  laminate:     ["Flooring",    "Laminate flooring",                "12 mm",                              "sf",     2.25],
+  hardwood:     ["Flooring",    "Engineered hardwood",              "",                                   "sf",     5.50],
+  carpet:       ["Flooring",    "Carpet",                           "",                                   "sf",     2.75],
+  carpet_pad:   ["Flooring",    "Carpet pad",                       "",                                   "sf",     0.70],
+  transition:   ["Flooring",    "Floor transition strip",           "",                                   "ea",    28.00],
+  floor_tile:   ["Tile",        "Porcelain floor tile",             "12x24",                              "sf",     3.50],
+  wall_tile:    ["Tile",        "Porcelain wall tile",              "12x24",                              "sf",     3.75],
+  splash_tile:  ["Tile",        "Ceramic subway tile",              "3x6 backsplash",                     "sf",     6.00],
+  cement_board: ["Tile",        '1/2" cement board',                "3x5 sheet",                          "sheet", 15.00],
+  thinset:      ["Tile",        "Modified thinset",                 "50 lb bag",                          "bag",   28.00],
+  grout:        ["Tile",        "Sanded grout",                     "25 lb bag",                          "bag",   24.00],
+  waterproof:   ["Tile",        "Waterproofing membrane",           "liquid, 1 gal",                      "gal",   65.00],
+  baseboard:    ["Trim",        "Baseboard",                        '3-1/4" primed MDF',                  "LF",     1.25],
+  casing:       ["Trim",        "Door / window casing",             '2-1/4" primed',                      "LF",     1.10],
+  trim_kit:     ["Trim",        "Brad nails, adhesive, caulk, filler", "",                                "room",  25.00],
+  int_door:     ["Doors",       "Prehung interior door",            '30-32" shaker',                      "ea",   165.00],
+  door_hw:      ["Doors",       "Passage door knob",                "",                                   "ea",    25.00],
+  window:       ["Windows",     "Vinyl replacement window",         "double-hung, mid-size",              "ea",   385.00],
+  vanity:       ["Bathroom",    "Vanity with top",                  '36" (other widths scale)',           "ea",   450.00],
+  faucet:       ["Bathroom",    "Bathroom faucet",                  "",                                   "ea",   120.00],
+  toilet:       ["Bathroom",    "Toilet",                           "elongated, comfort height",          "ea",   230.00],
+  toilet_kit:   ["Bathroom",    "Wax ring, supply line, bolts",     "",                                   "ea",    20.00],
+  tub:          ["Bathroom",    "Alcove bathtub",                   '60"',                                "ea",   450.00],
+  valve:        ["Plumbing",    "Tub/shower valve and trim",        "pressure-balance",                   "ea",   260.00],
+  plumb_parts:  ["Plumbing",    "Plumbing supplies",                "PEX, fittings, drain parts",         "lot",  180.00],
+  fan:          ["Electrical",  "Bath exhaust fan",                 "80 CFM",                             "ea",   110.00],
+  base_cab:     ["Cabinets",    "Base cabinets",                    "stock shaker, assembled",            "LF",   220.00],
+  wall_cab:     ["Cabinets",    "Wall cabinets",                    "stock shaker, assembled",            "LF",   160.00],
+  sink:         ["Kitchen",     "Kitchen sink and faucet",          "",                                   "ea",   450.00],
+  deck_frame:   ["Deck framing","Pressure-treated framing",         "joists, beams, posts, hangers, fasteners", "sf", 3.25],
+  footing:      ["Deck framing","Footing",                          "tube form, 3 bags concrete, post base", "ea", 55.00],
+  stair_step:   ["Deck framing","Stair stringers and tread",        "per step",                           "step",  60.00],
+  decking_pt:   ["Decking",     "Pressure-treated decking",         "5/4x6",                              "sf",     2.75],
+  decking_comp: ["Decking",     "Composite decking",                "with hidden fasteners",              "sf",     6.50],
+  rail_pt:      ["Railing",     "Pressure-treated railing",         "",                                   "LF",    14.00],
+  rail_comp:    ["Railing",     "Composite railing",                "",                                   "LF",    45.00],
+  shingles:     ["Roofing",     "Architectural shingles",           "3 bundles per square",               "bundle",42.00],
+  underlay:     ["Roofing",     "Synthetic underlayment",           "10 square roll",                     "roll",  95.00],
+  ice_water:    ["Roofing",     "Ice & water shield",               "2 square roll",                      "roll", 120.00],
+  drip_edge:    ["Roofing",     "Drip edge",                        "10 ft",                              "ea",     9.00],
+  ridge_cap:    ["Roofing",     "Ridge cap shingles",               "about 30 LF per bundle",             "bundle",65.00],
+  roof_nails:   ["Roofing",     "Coil roofing nails",               "about 15 squares per box",           "box",   45.00],
+  vinyl_siding: ["Siding",      "Vinyl siding",                     "square = 100 sf",                    "sq",   140.00],
+  fiber_siding: ["Siding",      "Fiber cement lap siding",          "primed",                             "sf",     2.60],
+  house_wrap:   ["Siding",      "House wrap",                       "9x150 roll",                         "roll", 180.00],
+  siding_trim:  ["Siding",      "J-channel, corners and trim",      "per square",                         "sq",    35.00],
+};
+// Finish materials follow the Material grade; drywall, fasteners and framing don't.
+const QUICK_FINISH = new Set(["wall_paint", "ceiling_paint", "trim_paint", "lvp", "laminate", "hardwood", "carpet",
+  "floor_tile", "wall_tile", "splash_tile", "baseboard", "casing", "int_door", "door_hw", "window", "vanity", "faucet",
+  "toilet", "tub", "valve", "fan", "base_cab", "wall_cab", "sink", "decking_pt", "decking_comp", "rail_pt", "rail_comp",
+  "shingles", "vinyl_siding", "fiber_siding"]);
+const GRADE = {"economy": 0.8, "mid-grade": 1, "high-end": 1.45};
+const SUB_RATE = {Plumber: 125, Electrician: 120};  // Hudson Valley trade rates
+const FLOORS = {"": "None", lvp: "Luxury vinyl plank", laminate: "Laminate", hardwood: "Engineered hardwood", carpet: "Carpet", tile: "Porcelain tile"};
+// What each job type starts with ticked; everything stays editable.
+const QUICK_PRESETS = {
+  "Bathroom remodel": {work: ["demo", "dw_walls", "dw_ceiling", "paint_walls", "paint_ceiling", "paint_trim", "baseboard"], floor: "tile", bath: true},
+  "Kitchen remodel": {work: ["demo", "paint_walls", "paint_ceiling", "paint_trim"], floor: "lvp", kitchen: true},
+  "Flooring": {work: ["demo", "baseboard"], floor: "lvp"},
+  "Interior painting": {work: ["paint_walls", "paint_ceiling", "paint_trim"], floor: ""},
+  "Drywall / finish": {work: ["dw_walls", "dw_ceiling", "paint_walls", "paint_ceiling"], floor: ""},
+  "Basement finish": {work: ["dw_walls", "dw_ceiling", "insulate", "paint_walls", "paint_ceiling", "paint_trim", "baseboard", "doors", "casing"], floor: "lvp"},
+  "Windows / doors": {work: ["windows", "doors", "casing", "paint_trim"], floor: ""},
+  "Deck": {work: [], floor: "", deck: true},
+  "Roofing": {work: [], floor: "", roof: true},
+  "Siding": {work: [], floor: "", siding: true},
+};
+const WORK = [
+  ["demo", "Demo & haul away"], ["dw_walls", "Drywall walls"], ["dw_ceiling", "Drywall ceiling"], ["insulate", "Insulate walls"],
+  ["paint_walls", "Paint walls"], ["paint_ceiling", "Paint ceiling"], ["paint_trim", "Paint trim & doors"],
+  ["baseboard", "New baseboard"], ["casing", "New door/window casing"], ["doors", "Replace interior doors"], ["windows", "Replace windows"]];
+
+function quickPrices() {
+  const over = LS("je_qprices") || {};
+  const p = {};
+  for (const [k, v] of Object.entries(QUICK_PRICES)) p[k] = v.slice(0, 4).concat([over[k] != null ? +over[k] : v[4]]);
+  return p;
+}
+const r2 = n => Math.round(n * 100) / 100, r1 = n => Math.round(n * 10) / 10, up = Math.ceil;
+
+function quickDefaults(type) {
+  const pre = QUICK_PRESETS[type] || {work: ["dw_walls", "dw_ceiling", "insulate", "paint_walls", "paint_ceiling", "paint_trim", "baseboard", "casing"], floor: "lvp"};
+  return {
+    title: "", type, work: pre.work.slice(), floor: pre.floor,
+    rooms: pre.deck || pre.roof || pre.siding ? [] : [{name: type === "Bathroom remodel" ? "Bathroom" : type === "Kitchen remodel" ? "Kitchen" : "Room 1", l: 12, w: 10, h: 8, doors: 1, windows: 1}],
+    bath: pre.bath ? {surround: 80, tub: true, vanity: 36, toilet: true, fan: true, valve: true} : null,
+    kitchen: pre.kitchen ? {base: 12, wall: 10, counter: 26, splash: 30, sink: true} : null,
+    deck: pre.deck ? {l: 16, w: 12, h: 3, material: "comp", rail: 40, steps: 3} : null,
+    roof: pre.roof ? {area: 1800, layers: 1, eaves: 80, ridge: 40} : null,
+    siding: pre.siding ? {area: 1600, material: "vinyl", tearoff: true} : null,
+  };
+}
+
+// The takeoff. q = the form; returns an estimate shaped like Claude's.
+function quickTakeoff(q, grade, rate) {
+  const P = quickPrices(), gf = GRADE[grade] || 1;
+  const M = [], L = [], O = [], scope = [], meas = [], assume = [];
+  const mat = (key, qty, waste, takeoff, mul = 1) => {
+    if (!(qty > 0)) return;
+    const [category, item, spec, unit, price] = P[key];
+    if (!["sf", "LF"].includes(unit)) {  // things bought whole: round up, waste included
+      const n = up(qty * (1 + (waste || 0) / 100) - 1e-9);
+      if (waste) takeoff += ` + ${waste}% waste`;
+      if (n !== qty) takeoff += ` -> ${n}`;
+      qty = n; waste = 0;
+    }
+    M.push({category, item, spec, quantity: r2(qty), unit, unit_cost: r2(price * mul * (QUICK_FINISH.has(key) ? gf : 1)),
+            waste_pct: waste || 0, takeoff, price_source: "price table"});
+  };
+  const lab = (trade, task, hours) => { if (hours > 0) L.push({trade, task, hours: r1(hours), rate: SUB_RATE[trade] || rate}); };
+  const has = w => q.work.includes(w);
+
+  // ---- rooms
+  let floor = 0, wall = 0, ceil = 0, base = 0, doors = 0, windows = 0, rooms = 0;
+  for (const r of q.rooms) {
+    const l = +r.l || 0, w = +r.w || 0, h = +r.h || 8, d = +r.doors || 0, win = +r.windows || 0;
+    if (!(l > 0 && w > 0)) continue;
+    const f = l * w, per = 2 * (l + w), net = Math.max(0, per * h - d * 21 - win * 15);
+    meas.push({area: r.name || "Room", length_ft: l, width_ft: w, height_ft: h, floor_sqft: r1(f), wall_sqft: r1(net),
+               how_measured: `entered by hand; walls net of ${d} door(s) at 21 sf and ${win} window(s) at 15 sf`});
+    floor += f; wall += net; ceil += f; base += Math.max(0, per - d * 3); doors += d; windows += win; rooms++;
+  }
+  const wet = !!q.bath;
+  if (rooms) {
+    if (has("demo")) {
+      scope.push(`Demo and haul away existing finishes (${r1(floor)} sf)`);
+      lab("Laborer", "Demo, protection and cleanup", floor * 0.05 + 4);
+      O.push({item: floor > 400 ? "20-yard dumpster" : "10-yard dumpster", cost: floor > 400 ? 650 : 525});
+    }
+    // in a bathroom the tiled tub/shower surround gets cement board, not drywall
+    const dwWalls = Math.max(0, wall - (q.bath ? +q.bath.surround || 0 : 0));
+    const dw = (has("dw_walls") ? dwWalls : 0) + (has("dw_ceiling") ? ceil : 0);
+    if (dw) {
+      scope.push(`Hang, tape and finish drywall (${r1(dw)} sf: ${[has("dw_walls") && "walls", has("dw_ceiling") && "ceiling"].filter(Boolean).join(" and ")})`);
+      mat(wet ? "drywall_mr" : "drywall", dw / 32, 10, `${r1(dw)} sf / 32 sf per sheet = ${r1(dw / 32)}`);
+      mat("mud", up(dw / 480), 0, `about 1 bucket per 480 sf`);
+      mat("tape", up(dw / 1200), 0, `about 1 roll per 1,200 sf`);
+      mat("dw_screws", up(dw / 1200), 0, `about 1 box per 1,200 sf`);
+      mat("bead", windows * 2 + 2, 0, `2 per window + 2 outside corners`);
+      mat("primer", up(dw / 300), 0, `${r1(dw)} sf / 300 sf per gal`);
+      lab("Drywall", "Hang, tape, finish 3 coats, sand", dw * 0.03);
+    }
+    if (has("insulate")) {
+      scope.push(`Insulate walls (${r1(wall)} sf)`);
+      mat("insulation", wall / 40, 5, `${r1(wall)} sf / 40 sf per bag`);
+      lab("Insulation", "Install batts", wall * 0.008);
+    }
+    if (has("paint_walls")) {
+      scope.push(`Paint walls, 2 coats (${r1(wall)} sf)`);
+      mat("wall_paint", up(wall * 2 / 350), 0, `${r1(wall)} sf x 2 coats / 350 sf per gal`);
+      lab("Painter", "Prep and paint walls, 2 coats", wall * 0.012);
+    }
+    if (has("paint_ceiling")) {
+      scope.push(`Paint ceilings (${r1(ceil)} sf)`);
+      mat("ceiling_paint", up(ceil * 2 / 350), 0, `${r1(ceil)} sf x 2 coats / 350 sf per gal`);
+      lab("Painter", "Paint ceilings, 2 coats", ceil * 0.015);
+    }
+    const trimLF = base + doors * 34 + windows * 15;
+    if (has("paint_trim")) {
+      scope.push(`Paint trim and doors (${r1(trimLF)} LF)`);
+      mat("trim_paint", up(trimLF / 100) + doors, 0, `1 qt per 100 LF of trim + 1 per door`);
+      lab("Painter", "Paint trim and doors", trimLF * 0.04 + doors * 1);
+    }
+    if (has("paint_walls") || has("paint_ceiling") || has("paint_trim")) mat("paint_kit", rooms, 0, `1 per room`);
+    if (q.floor) {
+      const fl = q.floor;
+      scope.push(`New ${FLOORS[fl].toLowerCase()} floor (${r1(floor)} sf)`);
+      if (fl === "tile") {
+        mat("floor_tile", floor, 15, `${r1(floor)} sf floor`);
+        mat("cement_board", floor / 15, 10, `${r1(floor)} sf / 15 sf per sheet`);
+        mat("thinset", up(floor * 2 / 50), 0, `backer + tile: ${r1(floor)} sf x 2 / 50 sf per bag`);
+        mat("grout", up(floor / 100), 0, `about 100 sf per bag`);
+        lab("Tile setter", "Backer board and floor tile", floor * 0.12);
+      } else {
+        mat(fl, floor, 10, `${r1(floor)} sf floor`);
+        if (fl === "carpet") mat("carpet_pad", floor, 10, `${r1(floor)} sf floor`);
+        lab(fl === "carpet" ? "Flooring installer" : "Carpenter", `Install ${FLOORS[fl].toLowerCase()}`,
+            floor * {lvp: 0.04, laminate: 0.04, hardwood: 0.07, carpet: 0.03}[fl]);
+      }
+      mat("transition", doors, 0, `1 per doorway`);
+    }
+    if (has("baseboard")) {
+      scope.push(`New baseboard (${r1(base)} LF)`);
+      mat("baseboard", base, 10, `room perimeters ${r1(base + doors * 3)} LF - 3 LF per door`);
+      lab("Carpenter", "Install baseboard", base * 0.05);
+    }
+    if (has("casing")) {
+      const lf = doors * 34 + windows * 15;
+      scope.push(`New casing on ${doors} door(s) and ${windows} window(s)`);
+      mat("casing", lf, 10, `${doors} doors x 34 LF (both sides) + ${windows} windows x 15 LF`);
+      lab("Carpenter", "Case doors and windows", doors * 1 + windows * 0.75);
+    }
+    if (has("baseboard") || has("casing")) mat("trim_kit", rooms, 0, `1 per room`);
+    if (has("doors") && doors) {
+      scope.push(`Replace ${doors} interior door(s)`);
+      mat("int_door", doors, 0, `${doors} door(s)`); mat("door_hw", doors, 0, `1 per door`);
+      lab("Carpenter", "Hang prehung doors", doors * 2);
+    }
+    if (has("windows") && windows) {
+      scope.push(`Replace ${windows} window(s)`);
+      mat("window", windows, 0, `${windows} window(s)`);
+      lab("Carpenter", "Remove and install windows, flash and insulate", windows * 2.5);
+    }
+  }
+  // ---- bathroom
+  const b = q.bath;
+  if (b) {
+    const s = +b.surround || 0;
+    if (s) {
+      scope.push(`Tile tub/shower surround (${s} sf) on cement board, waterproofed`);
+      mat("wall_tile", s, 15, `${s} sf of wall tile`);
+      mat("cement_board", s / 15, 10, `${s} sf / 15 sf per sheet`);
+      mat("waterproof", up(s / 55), 0, `2 coats, about 55 sf per gal`);
+      mat("thinset", up(s / 40), 0, `about 40 sf per bag on walls`);
+      mat("grout", up(s / 100), 0, `about 100 sf per bag`);
+      lab("Tile setter", "Backer, waterproofing and wall tile", s * 0.18);
+    }
+    if (b.tub || b.valve) mat("plumb_parts", 1, 0, "PEX, fittings, drain and overflow parts");
+    if (b.tub) { scope.push("New alcove tub"); mat("tub", 1, 0, "1"); lab("Plumber", "Set tub, drain and overflow", 8); }
+    if (b.valve) { scope.push("New tub/shower valve"); mat("valve", 1, 0, "1"); lab("Plumber", "Replace valve and trim", 4); }
+    if (+b.vanity) {
+      scope.push(`New ${b.vanity}" vanity and faucet`);
+      mat("vanity", 1, 0, `${b.vanity}" wide`, 0.45 + 0.55 * (+b.vanity) / 36); mat("faucet", 1, 0, "1");
+      lab("Plumber", "Set vanity, faucet and drain", 4);
+    }
+    if (b.toilet) { scope.push("New toilet"); mat("toilet", 1, 0, "1"); mat("toilet_kit", 1, 0, "1"); lab("Plumber", "Set toilet", 2); }
+    if (b.fan) { scope.push("New exhaust fan, vented outside"); mat("fan", 1, 0, "1"); lab("Electrician", "Install and wire exhaust fan", 3); }
+  }
+  // ---- kitchen
+  const k = q.kitchen;
+  if (k) {
+    if (+k.base || +k.wall) {
+      scope.push(`Install ${+k.base || 0} LF base and ${+k.wall || 0} LF wall cabinets`);
+      mat("base_cab", +k.base, 0, `${k.base} LF`); mat("wall_cab", +k.wall, 0, `${k.wall} LF`);
+      lab("Carpenter", "Install cabinets", ((+k.base || 0) + (+k.wall || 0)) * 1);
+    }
+    if (+k.counter) {
+      scope.push(`Quartz countertops (${k.counter} sf), templated and installed by fabricator`);
+      O.push({item: `Quartz countertop fabrication and install (${k.counter} sf @ $70)`, cost: r2(+k.counter * 70 * gf)});
+    }
+    if (+k.splash) {
+      scope.push(`Tile backsplash (${k.splash} sf)`);
+      mat("splash_tile", +k.splash, 10, `${k.splash} sf`); mat("thinset", up(k.splash / 40), 0, "about 40 sf per bag");
+      mat("grout", up(k.splash / 100), 0, "about 100 sf per bag");
+      lab("Tile setter", "Backsplash tile", (+k.splash) * 0.2);
+    }
+    if (k.sink) { scope.push("New sink and faucet"); mat("sink", 1, 0, "1"); lab("Plumber", "Set sink, faucet, disposal hookup", 4); }
+  }
+  // ---- deck
+  const d = q.deck;
+  if (d && +d.l && +d.w) {
+    const a = d.l * d.w, comp = d.material === "comp", posts = up(d.l / 8 + 1) * up(d.w / 10 + 1);
+    meas.push({area: "Deck", length_ft: +d.l, width_ft: +d.w, height_ft: +d.h || 0, floor_sqft: r1(a), wall_sqft: 0, how_measured: "entered by hand"});
+    scope.push(`Build ${d.l}' x ${d.w}' ${comp ? "composite" : "pressure-treated"} deck (${r1(a)} sf)`);
+    mat("deck_frame", a, 10, `${r1(a)} sf of deck`);
+    mat("footing", posts, 0, `posts about 8 ft x 10 ft apart: ${posts}`);
+    mat(comp ? "decking_comp" : "decking_pt", a, 10, `${r1(a)} sf of deck`);
+    lab("Carpenter", "Footings, framing and decking", a * (comp ? 0.32 : 0.28));
+    if (+d.rail) { mat(comp ? "rail_comp" : "rail_pt", +d.rail, 5, `${d.rail} LF`); lab("Carpenter", "Railing", d.rail * 0.5); scope.push(`${d.rail} LF of railing`); }
+    if (+d.steps) { mat("stair_step", +d.steps, 0, `${d.steps} step(s)`); lab("Carpenter", "Stairs", d.steps * 1.5); scope.push(`Stairs, ${d.steps} step(s)`); }
+    O.push({item: "Building permit (deck)", cost: 250});
+  }
+  // ---- roof
+  const rf = q.roof;
+  if (rf && +rf.area) {
+    const sq = rf.area / 100, layers = +rf.layers || 0;
+    meas.push({area: "Roof", length_ft: 0, width_ft: 0, height_ft: 0, floor_sqft: r1(+rf.area), wall_sqft: 0, how_measured: "roof area entered by hand"});
+    scope.push(`${layers ? `Tear off ${layers} layer(s) and re-roof` : "Re-roof"} ${r1(sq)} squares with architectural shingles`);
+    mat("shingles", sq * 3, 10, `${r1(sq)} squares x 3 bundles`);
+    mat("underlay", up(sq / 10), 0, `${r1(sq)} squares / 10 per roll`);
+    mat("ice_water", up((+rf.eaves || 0) * 6 / 200), 0, `eaves ${rf.eaves || 0} LF x 6 ft / 200 sf per roll`);
+    mat("drip_edge", up(((+rf.eaves || 0) * 2) / 10), 0, `eaves and rakes, about ${(+rf.eaves || 0) * 2} LF / 10 ft`);
+    mat("ridge_cap", up((+rf.ridge || 0) / 30), 0, `${rf.ridge || 0} LF ridge / 30 LF per bundle`);
+    mat("roof_nails", up(sq / 15), 0, `about 15 squares per box`);
+    lab("Roofer", layers ? "Tear-off and install" : "Install", sq * (2.2 + layers * 0.8));
+    O.push({item: "30-yard dumpster (roofing)", cost: layers ? 750 : 450});
+  }
+  // ---- siding
+  const sd = q.siding;
+  if (sd && +sd.area) {
+    const sq = sd.area / 100, fiber = sd.material === "fiber";
+    meas.push({area: "Exterior walls", length_ft: 0, width_ft: 0, height_ft: 0, floor_sqft: 0, wall_sqft: r1(+sd.area), how_measured: "wall area entered by hand"});
+    scope.push(`${sd.tearoff ? "Remove old siding and install" : "Install"} ${fiber ? "fiber cement" : "vinyl"} siding (${r1(+sd.area)} sf)`);
+    if (fiber) mat("fiber_siding", +sd.area, 12, `${r1(+sd.area)} sf of wall`); else mat("vinyl_siding", sq, 10, `${r1(sq)} squares`);
+    mat("house_wrap", up(sd.area / 1300), 0, `${r1(+sd.area)} sf / about 1,300 sf per roll`);
+    mat("siding_trim", sq, 0, `${r1(sq)} squares`);
+    lab("Siding installer", (sd.tearoff ? "Tear-off, " : "") + "wrap and siding", sq * ((fiber ? 6 : 4) + (sd.tearoff ? 1 : 0)));
+    if (sd.tearoff) O.push({item: "20-yard dumpster (siding)", cost: 650});
+  }
+
+  const hours = L.reduce((a, l) => a + l.hours, 0);
+  assume.push("Quantities come from the sizes entered by hand; nothing was measured from photos.",
+              "Material prices come from the app's price table (⚙ Settings → Quick-estimate prices), not looked up live.",
+              `${grade} finish materials.`, "Plumber $125/hr and electrician $120/hr where used.");
+  if (has("demo")) assume.push("Demo is finish-level only: no structural, plumbing or electrical moves.");
+  return {
+    project_title: q.title || q.type || "Quick estimate", job_type: q.type || "General renovation",
+    summary: scope.length ? `Quick estimate from entered sizes: ${scope.slice(0, 3).join("; ").toLowerCase()}${scope.length > 3 ? "; and more" : ""}.` : "Nothing selected yet.",
+    scale_reference: "Sizes entered by hand", confidence: "medium", measurements: meas, scope_of_work: scope,
+    materials: M, labor: L, other_costs: O, duration_days: r1(Math.max(0.5, Math.ceil(hours / 16 * 2) / 2)),
+    assumptions: assume,
+    exclusions: ["Permits unless listed", "Hidden damage found during demo (rot, mold, old wiring)", "Appliances", "Furniture moving and storage"],
+    questions_for_client: [],
+    finished_look: [q.type, q.floor && FLOORS[q.floor].toLowerCase() + " floor", has("paint_walls") && "freshly painted walls",
+                    b && +b.surround && "large porcelain tile tub surround", b && +b.vanity && "new vanity", k && "new shaker cabinets, quartz countertops, subway tile backsplash",
+                    d && +d.l && ((d.material === "comp" ? "composite" : "wood") + " deck with railing"), rf && +rf.area && "new architectural shingle roof",
+                    sd && +sd.area && (sd.material === "fiber" ? "fiber cement siding" : "vinyl siding")].filter(Boolean).join(", "),
+    _meta: {model: "Quick estimate (no AI)", created: new Date().toISOString().slice(0, 16).replace("T", " "), input_tokens: 0, output_tokens: 0},
+    quick: q,
+  };
+}
+
+// ---- the form
+let qform = null;
+function openQuick(fromEst) {
+  qform = fromEst || LS("je_quick") || quickDefaults($("#job_type").value || "General renovation");
+  if (!fromEst && $("#job_type").value && qform.type !== $("#job_type").value) qform = quickDefaults($("#job_type").value);
+  drawQuick();
+}
+function drawQuick() {
+  const q = qform, n = (path, v, w = 64, step = "any") => `<input class="n" type="number" min="0" step="${step}" data-q="${path}" value="${v ?? ""}" style="width:${w}px">`;
+  const chk = (path, v, label) => `<label class="check" style="margin:4px 14px 4px 0;display:inline-flex"><input type="checkbox" data-q="${path}" ${v ? "checked" : ""}> ${label}</label>`;
+  const sel = (path, v, opts) => `<select data-q="${path}" style="width:auto">${Object.entries(opts).map(([k, t]) => `<option value="${k}" ${k === v ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+  const types = [...$("#job_type").options].map(o => o.value).filter(Boolean);
+  $("#out").innerHTML = `
+  <div class="title-row"><h2>📐 Quick estimate</h2><span class="pill">no AI · works offline</span></div>
+  <p class="muted" style="margin:4px 0 12px">Enter the sizes and tick the work. The app does the takeoff with standard trade formulas and prices it
+    from your price table (⚙ Settings). Every line can still be edited after.</p>
+  <div class="row"><div><label>Job name</label><input data-q="title" value="${esc(q.title || "")}" placeholder="e.g. Smith hall bath"></div>
+    <div><label>Job type</label><select data-q="type">${types.map(t => `<option ${t === q.type ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div></div>
+
+  <div class="section"><h3>Rooms <span class="sp"></span><button data-qadd="room">+ room</button></h3>
+    ${q.rooms.length ? `<table class="tbl"><tr><th>Name</th><th class="num">Length ft</th><th class="num">Width ft</th><th class="num">Ceiling ft</th><th class="num">Doors</th><th class="num">Windows</th><th></th></tr>
+    ${q.rooms.map((r, i) => `<tr><td><input data-q="rooms.${i}.name" value="${esc(r.name || "")}"></td><td class="num">${n(`rooms.${i}.l`, r.l)}</td><td class="num">${n(`rooms.${i}.w`, r.w)}</td>
+      <td class="num">${n(`rooms.${i}.h`, r.h)}</td><td class="num">${n(`rooms.${i}.doors`, r.doors, 50, 1)}</td><td class="num">${n(`rooms.${i}.windows`, r.windows, 50, 1)}</td>
+      <td><button class="del" data-qdel="${i}">×</button></td></tr>`).join("")}</table>` : `<p class="muted" style="font-size:13px">No rooms - add one for interior work.</p>`}
+    ${q.rooms.length ? `<div style="margin-top:8px">${WORK.map(([k, t]) => chk(`work:${k}`, q.work.includes(k), t)).join("")}</div>
+    <div style="margin-top:6px"><label class="check" style="display:inline-flex">New floor: ${sel("floor", q.floor, FLOORS)}</label></div>` : ""}
+  </div>
+
+  <div class="section"><h3>Bathroom ${chk("on:bath", !!q.bath, "include")}</h3>${q.bath ? `
+    <div>Tub/shower surround tile ${n("bath.surround", q.bath.surround)} sf &nbsp; Vanity width ${n("bath.vanity", q.bath.vanity, 56)} in (0 = none)</div>
+    <div>${chk("bath.tub", q.bath.tub, "New tub")}${chk("bath.valve", q.bath.valve, "New shower valve")}${chk("bath.toilet", q.bath.toilet, "New toilet")}${chk("bath.fan", q.bath.fan, "Exhaust fan")}</div>` : ""}</div>
+
+  <div class="section"><h3>Kitchen ${chk("on:kitchen", !!q.kitchen, "include")}</h3>${q.kitchen ? `
+    <div>Base cabinets ${n("kitchen.base", q.kitchen.base)} LF &nbsp; Wall cabinets ${n("kitchen.wall", q.kitchen.wall)} LF &nbsp; Countertop ${n("kitchen.counter", q.kitchen.counter)} sf &nbsp;
+      Backsplash ${n("kitchen.splash", q.kitchen.splash)} sf ${chk("kitchen.sink", q.kitchen.sink, "New sink & faucet")}</div>` : ""}</div>
+
+  <div class="section"><h3>Deck ${chk("on:deck", !!q.deck, "include")}</h3>${q.deck ? `
+    <div>${n("deck.l", q.deck.l)} ft x ${n("deck.w", q.deck.w)} ft, ${n("deck.h", q.deck.h, 50)} ft high &nbsp; ${sel("deck.material", q.deck.material, {comp: "Composite", pt: "Pressure-treated"})}
+      &nbsp; Railing ${n("deck.rail", q.deck.rail)} LF &nbsp; Stair steps ${n("deck.steps", q.deck.steps, 50, 1)}</div>` : ""}</div>
+
+  <div class="section"><h3>Roof ${chk("on:roof", !!q.roof, "include")}</h3>${q.roof ? `
+    <div>Roof area ${n("roof.area", q.roof.area, 80)} sf &nbsp; Layers to tear off ${n("roof.layers", q.roof.layers, 50, 1)} &nbsp; Eaves ${n("roof.eaves", q.roof.eaves)} LF &nbsp; Ridge ${n("roof.ridge", q.roof.ridge)} LF</div>
+    <div class="muted" style="font-size:12px">Roof area = house footprint x about 1.15 for a medium pitch, plus overhangs.</div>` : ""}</div>
+
+  <div class="section"><h3>Siding ${chk("on:siding", !!q.siding, "include")}</h3>${q.siding ? `
+    <div>Wall area ${n("siding.area", q.siding.area, 80)} sf &nbsp; ${sel("siding.material", q.siding.material, {vinyl: "Vinyl", fiber: "Fiber cement"})} ${chk("siding.tearoff", q.siding.tearoff, "Remove old siding")}</div>` : ""}</div>
+
+  <div class="toolbar"><button class="primary" id="qGo">Make the estimate</button><button id="qReset">Start over</button></div>`;
+}
+const QSECTIONS = {bath: {surround: 80, tub: true, vanity: 36, toilet: true, fan: true, valve: true}, kitchen: {base: 12, wall: 10, counter: 26, splash: 30, sink: true},
+                   deck: {l: 16, w: 12, h: 3, material: "comp", rail: 40, steps: 3}, roof: {area: 1800, layers: 1, eaves: 80, ridge: 40}, siding: {area: 1600, material: "vinyl", tearoff: true}};
+function quickInput(t) {
+  const path = t.dataset.q; if (!path || !qform) return;
+  const v = t.type === "checkbox" ? t.checked : t.type === "number" ? +t.value : t.value;
+  if (path.startsWith("work:")) { const k = path.slice(5); qform.work = qform.work.filter(w => w !== k).concat(v ? [k] : []); }
+  else if (path.startsWith("on:")) { const k = path.slice(3); qform[k] = v ? {...QSECTIONS[k]} : null; drawQuick(); }
+  else if (path === "type") { const t2 = qform.title; qform = quickDefaults(v); qform.title = t2; drawQuick(); }
+  else { const parts = path.split("."); let o = qform; while (parts.length > 1) o = o[parts.shift()]; o[parts[0]] = v; }
+  LSset("je_quick", qform);
+}
+$("#out").addEventListener("change", e => { if (e.target.dataset.q && (e.target.type === "checkbox" || e.target.tagName === "SELECT")) quickInput(e.target); });
+$("#out").addEventListener("input", e => { if (e.target.dataset.q && e.target.type !== "checkbox" && e.target.tagName !== "SELECT") quickInput(e.target); });
+$("#out").addEventListener("click", e => {
+  if (!qform) return;
+  const t = e.target;
+  if (t.dataset.qadd === "room") { qform.rooms.push({name: "Room " + (qform.rooms.length + 1), l: 12, w: 10, h: 8, doors: 1, windows: 1}); LSset("je_quick", qform); drawQuick(); }
+  else if (t.dataset.qdel != null) { qform.rooms.splice(+t.dataset.qdel, 1); LSset("je_quick", qform); drawQuick(); }
+  else if (t.id === "qReset") { qform = quickDefaults(qform.type); LSset("je_quick", qform); drawQuick(); }
+  else if (t.id === "qGo") {
+    est = quickTakeoff(qform, $("#grade").value, +$("#labor_rate").value || 75);
+    est.supplier = $("#supplier").value;
+    doc = {id: "", client: "", address: ""}; qform = null;
+    render();
+  }
+});
+
+// ---- price table editor (⚙ Settings → Quick-estimate prices)
+function openPrices() {
+  const P = quickPrices();
+  let cat = "";
+  $("#pricesBody").innerHTML = Object.entries(P).map(([k, [c, item, spec, unit, price]]) =>
+    (c !== cat ? `<tr class="cat"><td colspan="3">${esc(cat = c)}</td></tr>` : "") +
+    `<tr><td>${esc(item)}<div class="sub">${esc(spec)}</div></td><td class="muted">${esc(unit)}</td>
+     <td class="num"><input class="n" type="number" step="any" min="0" data-price="${k}" value="${price}"></td></tr>`).join("");
+  $("#pricesDlg").showModal();
+}
+
+
+// ---- 🤖 Local agent: does the job without Claude. Reads the notes with rules (works offline on every
+// device), has the local AI look at photos for what the notes don't say (Ollama on the PC; phones and
+// Macs use the PC over the link), then the Quick takeoff does quantities, labor and prices.
+const WORDNUM = {one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, a: 1, an: 1};
+const numOf = s => WORDNUM[String(s).toLowerCase()] ?? +s;
+const FT = String.raw`\s*(?:'|ft\.?|feet|foot)?`;
+const DIMS = new RegExp(String.raw`(\d+(?:\.\d+)?)${FT}\s*(?:x|by|×)\s*(\d+(?:\.\d+)?)${FT}`, "gi");
+
+function readNotes(text, jobType) {
+  const t = " " + (text || "").toLowerCase().replace(/[’`]/g, "'") + " ";
+  const has = re => re.test(t), heard = [];
+  const num = (re, fallback = null) => { const m = t.match(re); return m ? numOf(m[1]) : fallback; };
+  const dims = [...t.matchAll(DIMS)].map(m => [+m[1], +m[2]]).filter(([a, b]) => a > 0 && b > 0);
+
+  // what kind of job
+  let type = jobType || "";
+  if (!type) {
+    const order = [["Deck", /\bdeck\b/], ["Roofing", /\broof|shingle/], ["Siding", /\bsiding\b/], ["Kitchen remodel", /kitchen|cabinet|countertop/],
+      ["Bathroom remodel", /bath|shower|\btub\b|vanity|toilet/], ["Basement finish", /basement/],
+      ["Windows / doors", /(replace|new)\s+(\d+\s+)?(windows?|doors?)\b/], ["Flooring", /\b(lvp|laminate|carpet|hardwood|vinyl plank|floor(ing)?)\b/],
+      ["Interior painting", /\bpaint/], ["Drywall / finish", /drywall|sheetrock/]];
+    type = (order.find(([, re]) => has(re)) || ["General renovation"])[0];
+    heard.push(`job type: ${type.toLowerCase()}`);
+  }
+  const plan = {type, rooms: null, work: null, floor: null, bath: null, kitchen: null, deck: null, roof: null, siding: null};
+
+  // the work, when the notes name it (otherwise the job type's usual work stays)
+  const work = [];
+  if (has(/\b(demo|gut|tear (it )?out|rip out|remove (the )?(old|existing))/)) work.push("demo");
+  if (has(/drywall|sheetrock|sheet ?rock|new walls|\bgut/)) work.push("dw_walls", "dw_ceiling");
+  if (has(/insulat/)) work.push("insulate");
+  if (has(/\bpaint/)) {  // "paint the trim" / "paint the walls" means just that; plain "paint" means the room
+    const only = [has(/paint\w*\s+(the\s+)?walls?/) && "paint_walls", has(/paint\w*\s+(the\s+)?ceilings?/) && "paint_ceiling",
+                  has(/paint\w*\s+(the\s+)?(trim|doors|baseboards?)/) && "paint_trim"].filter(Boolean);
+    work.push(...(only.length ? only : ["paint_walls", "paint_ceiling", "paint_trim"]));
+  }
+  if (has(/baseboard|base trim|new trim/) && !has(/paint\w*\s+(the\s+)?baseboards?/)) work.push("baseboard");
+  if (has(/casing/)) work.push("casing");
+  if (has(/(replace|new)\s+(\d+\s+|interior\s+)?doors?\b/)) work.push("doors");
+  if (has(/(replace|new)\s+(\d+\s+)?windows?\b/)) work.push("windows", "casing");
+  // finishing a space: what the notes name comes on top of the usual work, not instead of it
+  if (work.length && ["Basement finish", "General renovation", "Addition", "New construction"].includes(type))
+    work.push(...(QUICK_PRESETS[type]?.work || ["dw_walls", "dw_ceiling", "insulate", "paint_walls", "paint_ceiling", "paint_trim", "baseboard", "casing"]));
+  if (work.length) { plan.work = [...new Set(work)]; heard.push("work: " + plan.work.map(w => WORK.find(([k]) => k === w)[1].toLowerCase()).join(", ")); }
+
+  const floor = has(/\blvp\b|vinyl plank|luxury vinyl/) ? "lvp" : has(/laminate/) ? "laminate" : has(/hardwood|engineered/) ? "hardwood"
+    : has(/carpet/) ? "carpet" : has(/(tile|porcelain|ceramic)\s+floor|floor\s+tile|tiled? floor/) ? "tile" : has(/no (new )?floor/) ? "" : null;
+  if (floor != null) { plan.floor = floor; heard.push(`floor: ${FLOORS[floor] || "none"}`); }
+
+  plan.counts = {};
+  const ceiling = num(/(\d+(?:\.\d+)?)\s*(?:'|ft|foot|feet)?\s*(?:high\s+)?ceilings?/), doors = num(/(\d+|one|two|three|four|five|six)\s+doors?\b/),
+        windows = num(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+windows?\b/);
+
+  if (type === "Deck") {
+    const [l, w] = dims[0] || [];
+    plan.deck = {l: l || null, w: w || null, h: num(/(\d+(?:\.\d+)?)\s*(?:'|ft|feet)?\s*(?:high|off the ground|tall|up)/, 3),
+      material: has(/composite|trex|azek|timbertech|fiberon/) ? "comp" : has(/pressure.?treated|\bpt\b|\bwood\b|cedar/) ? "pt" : "comp",
+      rail: num(/(\d+)\s*(?:lf|ft|feet|')?\s*(?:of\s+)?rail/), steps: num(/(\d+|one|two|three|four|five|six)\s+(?:stairs?|steps?)/, 3)};
+    if (l) heard.push(`deck ${l} x ${w} ft`);
+  } else if (type === "Roofing") {
+    const sq = num(/(\d+(?:\.\d+)?)\s*squares?/), sf = num(/(\d[\d,]*)\s*(?:sf|sq\.? ?ft|square feet)/);
+    const [l, w] = dims[0] || [];
+    const area = sq ? sq * 100 : sf ? sf : l ? Math.round(l * w * 1.15 + 2 * (l + w)) : null;
+    plan.roof = {area, layers: has(/no tear|over (the )?(old|existing)|overlay/) ? 0 : num(/(\d|one|two|three)\s+layers?/, 1),
+                 eaves: l ? 2 * l : null, ridge: l || null};
+    if (area) heard.push(`roof ${area} sf${l && !sq && !sf ? ` (house ${l} x ${w} ft x 1.15 for pitch + overhangs)` : ""}`);
+  } else if (type === "Siding") {
+    const sf = num(/(\d[\d,]*)\s*(?:sf|sq\.? ?ft|square feet)/), [l, w] = dims[0] || [];
+    const area = sf || (l ? Math.round(2 * (l + w) * (ceiling || 9) * 0.85) : null);
+    plan.siding = {area, material: has(/fiber ?cement|hardie|hardy/) ? "fiber" : "vinyl", tearoff: !has(/over (the )?(old|existing)/)};
+    if (area) heard.push(`siding ${area} sf${l && !sf ? ` (house ${l} x ${w} ft, walls less 15% openings)` : ""}`);
+  } else {
+    if (doors != null) plan.counts.doors = doors;
+    if (windows != null) plan.counts.windows = windows;
+    if (windows) heard.push(`${windows} window(s)`);
+  }
+  if (["Deck", "Roofing", "Siding"].includes(type)) {
+  } else if (dims.length) {
+    plan.rooms = dims.map(([l, w], i) => ({name: dims.length > 1 ? `Room ${i + 1}` : ({"Bathroom remodel": "Bathroom", "Kitchen remodel": "Kitchen"}[type] || "Room"),
+                                           l, w, h: ceiling || 8, doors: doors ?? 1, windows: windows ?? 1}));
+    heard.push(dims.map(([l, w]) => `${l} x ${w} ft`).join(", ") + (ceiling ? `, ${ceiling} ft ceilings` : ""));
+  }
+
+  if (type === "Bathroom remodel") {
+    const tub = has(/\btub\b|bathtub/) && !has(/no tub|remove the tub|tub to shower|walk.?in shower/);
+    const showerTile = has(/surround|tile (the )?(shower|walls)|shower (walls|tile)|tiled? shower|walk.?in shower/);
+    const vanity = num(/(\d{2})\s*(?:"|in\.?|inch(?:es)?)?\s*(?:wide\s+)?vanity/, has(/vanity/) ? (plan.rooms && plan.rooms[0].l * plan.rooms[0].w < 45 ? 30 : 36) : 0);
+    plan.bath = {surround: num(/(\d+)\s*(?:sf|sq\.? ?ft|square feet)\s*(?:of\s+)?(?:wall\s+)?tile/, showerTile || tub ? (has(/walk.?in shower/) ? 100 : 80) : 0),
+                 tub, valve: tub || has(/valve|shower/), vanity, toilet: has(/toilet/), fan: has(/\bfan\b|exhaust|vent/)};
+    heard.push("bathroom: " + [plan.bath.surround && `${plan.bath.surround} sf tile surround`, tub && "new tub", plan.bath.valve && "new valve",
+                               vanity && `${vanity}" vanity`, plan.bath.toilet && "toilet", plan.bath.fan && "exhaust fan"].filter(Boolean).join(", "));
+  }
+  if (type === "Kitchen remodel") {
+    const base = num(/(\d+(?:\.\d+)?)\s*(?:lf|linear (?:feet|ft)|feet|ft|')\s*(?:of\s+)?(?:base\s+)?cabinets?/);
+    plan.kitchen = {base, wall: base ? Math.round(base * 0.8) : null, counter: has(/counter/) ? (base ? Math.round(base * 2.1) : null) : 0,
+                    splash: has(/backsplash/) ? (base ? Math.round(base * 1.5) : null) : 0, sink: has(/sink|faucet/)};
+    heard.push("kitchen: " + [base && `${base} LF base cabinets`, has(/counter/) && "countertops", has(/backsplash/) && "backsplash", plan.kitchen.sink && "sink"].filter(Boolean).join(", "));
+  }
+  return {plan, heard};
+}
+
+// Fill what the notes didn't give from the local AI's look at the photos.
+function mergePhotos(plan, seen, notes) {
+  const inside = seen.filter(p => !["exterior wall", "deck", "roof"].includes(p.room) && p.length_ft > 0 && p.width_ft > 0);
+  const sensible = v => Math.min(40, Math.max(4, Math.round(v * 2) / 2));
+  if (!plan.rooms && inside.length && !["Deck", "Roofing", "Siding"].includes(plan.type)) {
+    plan.fromPhoto = true;
+    plan.rooms = inside.map((p, i) => ({name: p.room.replace(/^./, c => c.toUpperCase()) + (inside.length > 1 ? ` ${i + 1}` : ""),
+      l: sensible(p.length_ft), w: sensible(p.width_ft), h: p.ceiling_ft >= 7 && p.ceiling_ft <= 14 ? Math.round(p.ceiling_ft * 2) / 2 : 8,
+      doors: Math.min(3, Math.max(1, p.room_doors || 1)), windows: Math.min(8, Math.max(0, p.windows || 0))}));
+    notes.push("photo: " + inside.map(p => `${p.room} about ${sensible(p.length_ft)} x ${sensible(p.width_ft)} ft, ${p.windows || 0} window(s)` + (p.how ? ` (${p.how.replace(/\.$/, "")})` : "")).join("; "));
+  }
+  if (plan.type === "Kitchen remodel" && plan.kitchen && !plan.kitchen.base) {
+    const lf = Math.max(0, ...seen.map(p => p.base_cabinet_lf || 0));
+    if (lf) {
+      const k = plan.kitchen; k.base = Math.round(lf); k.wall = Math.round(lf * 0.8);
+      if (k.counter == null) k.counter = Math.round(lf * 2.1);  // sized off the cabinets the photo showed
+      if (k.splash == null) k.splash = Math.round(lf * 1.5);
+      notes.push(`photo: about ${Math.round(lf)} LF of base cabinets`);
+    }
+  }
+  if (plan.type === "Bathroom remodel" && plan.bath && !plan.bath.surround && seen.some(p => p.has_tub)) {
+    plan.bath.surround = 80; notes.push("photo: there's a tub, so a tile surround is included");
+  }
+}
+
+// plan (what the agent found) on top of the job type's usual Quick-estimate form
+function planToForm(plan) {
+  const q = quickDefaults(plan.type);
+  if (plan.work) q.work = plan.work;
+  if (plan.floor != null) q.floor = plan.floor;
+  if (plan.rooms) q.rooms = plan.rooms;
+  else if (q.rooms.length && plan.counts) Object.assign(q.rooms[0], plan.counts);  // e.g. "replace 8 windows", no sizes
+  for (const k of ["bath", "kitchen", "deck", "roof", "siding"])
+    if (plan[k]) { q[k] = {...(q[k] || QSECTIONS[k])}; for (const [f, v] of Object.entries(plan[k])) if (v != null) q[k][f] = v; }
+  return q;
+}
+
+async function runLocalAgent(body, say) {
+  const {plan, heard} = readNotes(body.notes, body.settings.job_type);
+  const notes = heard.map(h => "notes: " + h);
+  const photos = body.files.filter(f => f.type.startsWith("image/"));
+  let model = "";
+  if (photos.length && keyStatus.local_ai) {
+    const imgs = [];
+    for (const f of photos.slice(0, 3)) imgs.push((await fitPhoto("data:" + f.type + ";base64," + f.data, 640)).url.split(",")[1]);
+    say(`The local AI is looking at ${imgs.length} photo(s)… about 30-60 s each`);
+    const r = await fetch("/api/vision", {method: "POST", headers: H, body: JSON.stringify({images: imgs})});
+    const j = await r.json();
+    if (r.ok) { model = j.model; mergePhotos(plan, j.photos, notes); }
+    else notes.push("photos skipped: " + j.error);
+  } else if (photos.length) notes.push("photos not read: no local AI on this device and no PC linked (⚙ Settings)");
+  const q = planToForm(plan);
+  q.title = (body.notes || "").split(/[.\n]/)[0].slice(0, 60) || plan.type;
+  const guessedSize = !plan.rooms && q.rooms.length;
+  const e = quickTakeoff(q, body.settings.grade, body.settings.labor_rate || 75);
+  e.confidence = "low";
+  e.summary = e.summary.replace("Quick estimate from entered sizes", "Local agent estimate");
+  if (plan.fromPhoto) {
+    e.scale_reference = `Room sizes estimated by the local AI (${model}) from the photo - check them`;
+    e.measurements.forEach(m => m.how_measured = "estimated from the photo by the local AI - check it");
+  } else if (plan.rooms) e.scale_reference = "Sizes from your notes";
+  e._meta.model = "Local agent" + (model ? ` (${model} for photos)` : " (notes only)") + " + Quick takeoff";
+  e.assumptions.unshift(...notes.map(n => "Agent read - " + n));
+  if (guessedSize) e.assumptions.unshift(`No size in the notes or photos - used the usual ${q.rooms.map(r => r.l + " x " + r.w).join(", ")} ft. Fix it with ✎ Change sizes & work.`);
+  e.questions_for_client = ["Confirm the room sizes - the agent's are estimates.", "Confirm finish selections and grade."];
+  return e;
+}
+
+$("#quickBtn").onclick = () => { est = null; openQuick(); };
+$("#pricesBtn").onclick = openPrices;
+$("#pricesCancel").onclick = () => $("#pricesDlg").close();
+$("#pricesReset").onclick = () => { LSset("je_qprices", {}); openPrices(); };
+$("#pricesSave").onclick = () => {
+  const over = {};
+  document.querySelectorAll("[data-price]").forEach(i => { const k = i.dataset.price; if (+i.value !== QUICK_PRICES[k][4]) over[k] = +i.value; });
+  LSset("je_qprices", over); $("#pricesDlg").close();
+};
+
+// ---- 📤 Share app: the public download page for every platform
+const SHARE_URL = "https://github.com/Rbuilder1/job-estimator-download";
+const SHARE_TEXT = "Job Estimator: take photos of a room or the plans and get a full material list and priced estimate, "
+  + "plus a before/after preview of the finished job. Download it for Windows, Mac, Android or iPhone: " + SHARE_URL;
+$("#shareBtn").onclick = () => {
+  $("#shareLink").value = SHARE_URL; $("#shareMsg").textContent = "";
+  // phones: their own share sheet (Messages, email, WhatsApp...); computers: copy or email
+  $("#shareSheet").hidden = !keyStatus.mobile;
+  $("#shareCopy").hidden = $("#shareEmail").hidden = !!keyStatus.mobile;
+  $("#shareDlg").showModal();
+};
+$("#shareSheet").onclick = () => fetch("/api/mobile/share", {method: "POST", headers: H,
+  body: JSON.stringify({name: "Job Estimator.txt", text: SHARE_TEXT, mime: "text/plain"})});
+$("#shareCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(SHARE_URL); $("#shareMsg").textContent = "Link copied - paste it into a text or email."; }
+  catch { $("#shareLink").select(); $("#shareMsg").textContent = "Press Ctrl+C (Mac: ⌘C) to copy the selected link."; }
+};
+$("#shareEmail").onclick = () => fetch("/api/open", {method: "POST", headers: H, body: JSON.stringify({url:
+  "mailto:?subject=" + encodeURIComponent("Job Estimator app") + "&body=" + encodeURIComponent(SHARE_TEXT)})});
+$("#shareClose").onclick = () => $("#shareDlg").close();
+$("#saveSettings").onclick = async () => {
+  rates.company = $("#companyIn").value.trim(); LSset("je_rates", rates);
+  const key = $("#keyIn").value.trim();
+  if (key && !(await postKey(key))) return;
+  if ($("#engineIn").value === "claude" && !keyStatus.key) {
+    $("#keyMsg").innerHTML = `<span class="err">Claude needs an API key - paste one above, or pick the local agent.</span>`; return;
+  }
+  LSset("je_engine", $("#engineIn").value || null); engineLabel();
+  if ((keyStatus.mobile || keyStatus.remote) && !keyStatus.web && ($("#codeIn").value.trim() || $("#pcIn").value.trim() !== (keyStatus.pc || ""))) {
+    $("#linkMsg").textContent = "Checking the PC…";
+    const r = await fetch("/api/link", {method: "POST", headers: H, body: JSON.stringify({pc: $("#pcIn").value.trim(), code: $("#codeIn").value.trim()})});
+    const j = await r.json();
+    if (!r.ok) { $("#linkMsg").innerHTML = `<span class="err">${esc(j.error)}</span>`; return; }
+    await refreshStatus();
+  }
+  $("#settings").close();
+  if (est) render();
+};
+$("#removeKey").onclick = async () => { if (await postKey("")) openSettings(); };
+$("#closeSettings").onclick = () => $("#settings").close();
+refreshStatus(true);
+
+// ---- file intake: shrink photos to ~1600px JPEG so uploads stay small
+function shrink(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL("image/jpeg", 0.85);
+      URL.revokeObjectURL(img.src);
+      res({name: file.name, type: "image/jpeg", data: url.split(",")[1], preview: url});
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+function readRaw(file) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res({name: file.name, type: file.type, data: r.result.split(",")[1], preview: ""});
+    r.readAsDataURL(file);
+  });
+}
+async function addFiles(list) {
+  for (const f of list) {
+    try {
+      if (f.type === "application/pdf") {
+        if (f.size > 25e6) { alert(`${f.name} is over 25 MB - split it into fewer pages.`); continue; }
+        files.push(await readRaw(f));
+      } else if (f.type.startsWith("image/")) files.push(await shrink(f));
+    } catch { alert("Couldn't read " + f.name); }
+  }
+  drawThumbs();
+}
+function drawThumbs() {
+  $("#thumbs").innerHTML = files.map((f, i) => `<div class="thumb">${f.preview ? `<img src="${f.preview}">` : `📄<br>${esc(f.name)}`}<button class="x" data-i="${i}">×</button></div>`).join("");
+}
+$("#thumbs").onclick = e => { if (e.target.dataset.i) { files.splice(+e.target.dataset.i, 1); drawThumbs(); } };
+const drop = $("#drop");
+drop.onclick = () => $("#file").click();
+$("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); };
+document.addEventListener("paste", e => { const fs = [...e.clipboardData.files]; if (fs.length) addFiles(fs); });
+
+// ---- run the estimate
+$("#go").onclick = async () => {
+  const body = {
+    files: files.map(({name, type, data}) => ({name, type, data})),
+    notes: $("#notes").value.trim(),
+    settings: {job_type: $("#job_type").value, location: $("#location").value, labor_rate: +$("#labor_rate").value,
+               grade: $("#grade").value, live_prices: $("#live_prices").checked,
+               supplier: $("#supplier").value, price_list: $("#price_list").value},
+  };
+  if (!body.files.length && !body.notes) return alert("Add a photo/plan or describe the job first.");
+  if (engine() === "claude" && !keyStatus.key) return askForKey();
+  $("#go").disabled = true; busy(true);
+  const t0 = Date.now(), local = engine() === "local";
+  let say = local ? "The local agent is reading your notes…" : "usually 1-3 minutes";
+  $("#out").innerHTML = `<div id="empty"><div class="spinner"></div>${local ? "🤖 Local agent at work (no Claude)…" : "Measuring, doing the takeoff, pricing it out…"}<br><small id="tick">0s</small></div>`;
+  const tick = setInterval(() => { const t = $("#tick"); if (t) t.textContent = Math.round((Date.now() - t0) / 1000) + "s - " + say; }, 1000);
+  try {
+    let j;
+    if (local) j = await runLocalAgent(body, m => say = m);
+    else {
+      const r = await fetch("/api/estimate", {method: "POST", headers: H, body: JSON.stringify(body)});
+      j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.statusText);
+    }
+    if (est?.previews?.length) { j.previews = est.previews; doc.id = ""; } else doc = {id: "", client: "", address: ""};
+    est = j; est.supplier = body.settings.supplier || "Home Depot";
+    render();
+  } catch (e) {
+    $("#out").innerHTML = `<div id="empty"><div class="big">⚠️</div><div class="err">${esc(e.message)}</div></div>`;
+  } finally { clearInterval(tick); $("#go").disabled = false; busy(false); }
+};
+
+// Who does "Estimate this job": Claude (needs a key) or the local agent (free, offline).
+const engine = () => LS("je_engine") || (keyStatus.key ? "claude" : "local");
+function engineLabel() {
+  const b = $("#go"); if (!b) return;
+  for (const w of document.querySelectorAll("#who button")) w.classList.toggle("on", w.dataset.engine === engine());
+  $("#whoMsg").textContent = engine() === "claude" ? (keyStatus.key ? "Claude does the estimate (uses your API credit)." : "Claude needs your API key - tap ✦ Claude to add it.")
+    : "Free and offline" + (keyStatus.local_ai ? "" : " - photos are skipped without a local AI; your notes are still read") + ".";
+  b.textContent = engine() === "local" ? "🤖 Estimate this job (local agent)" : "Estimate this job";
+  b.title = engine() === "local" ? "No Claude needed: rules read your notes, the local AI looks at photos, the calculator prices it" : "Claude reads the photos and does the takeoff";
+}
+
+function askForKey() {
+  openSettings(); $("#engineIn").value = "claude";
+  $("#keyMsg").innerHTML = `<b style="color:var(--accent2)">Paste your Claude API key to switch to Claude.</b>`;
+  setTimeout(() => $("#keyIn").focus(), 50);
+}
+for (const w of document.querySelectorAll("#who button")) w.onclick = () => {
+  if (w.dataset.engine === "claude" && !keyStatus.key) return askForKey();
+  LSset("je_engine", w.dataset.engine); engineLabel();
+};
+
+// ---- math (all in the page so edits re-price instantly)
+const matLine = m => (+m.quantity || 0) * (1 + (+m.waste_pct || 0) / 100) * (+m.unit_cost || 0);
+const labLine = l => (+l.hours || 0) * (+l.rate || 0);
+function totals() {
+  const mat = est.materials.reduce((a, m) => a + matLine(m), 0);
+  const lab = est.labor.reduce((a, l) => a + labLine(l), 0);
+  const oth = est.other_costs.reduce((a, o) => a + (+o.cost || 0), 0);
+  const tax = mat * rates.tax / 100;
+  const cost = mat + tax + lab + oth;
+  const matOh = (mat + tax) * (+rates.mat_overhead || 0) / 100;  // on what the materials cost you, tax in
+  const markup = cost * rates.markup / 100;                        // on the whole job cost, not stacked on matOh
+  const cont = (cost + matOh + markup) * rates.contingency / 100;
+  const total = cost + matOh + markup + cont;
+  const hours = est.labor.reduce((a, l) => a + (+l.hours || 0), 0);
+  return {mat, lab, oth, tax, cost, matOh, markup, cont, total, hours};
+}
+
+function render() {
+  if (est._previewOnly) return renderPreviewOnly();
+  const e = est, t = totals();
+  const cats = [...new Set(e.materials.map(m => m.category || "Other"))];
+  $("#out").innerHTML = `
+  <div id="printhead"><b style="font-size:16px">${esc(rates.company)}</b> · Estimate ${esc(e._meta?.created || "")}<br>
+    ${esc(doc.client)} ${doc.address ? "· " + esc(doc.address) : ""}</div>
+  <div class="title-row">
+    <h2>${esc(e.project_title)}</h2>
+    <span class="pill">${esc(e.job_type)}</span>
+    <span class="pill ${esc(e.confidence)}">confidence: ${esc(e.confidence)}</span>
+  </div>
+  <p class="muted" style="margin:4px 0 12px">${esc(e.summary)}</p>
+  <div class="row noprint" style="margin-bottom:12px">
+    <input id="client" placeholder="Client name" value="${esc(doc.client)}">
+    <input id="address" placeholder="Job address" value="${esc(doc.address)}">
+  </div>
+  <div class="kpis">
+    <div class="kpi total"><div class="v" id="k_total">${money0(t.total)}</div><div class="l">Job price</div></div>
+    <div class="kpi"><div class="v" id="k_mat">${money0(t.mat + t.tax)}</div><div class="l">Materials w/ tax</div></div>
+    <div class="kpi"><div class="v" id="k_lab">${money0(t.lab)}</div><div class="l">Labor · <span id="k_hrs">${t.hours.toFixed(0)}</span> hrs</div></div>
+    <div class="kpi"><div class="v">${(+e.duration_days || 0).toFixed(1)}</div><div class="l">Est. working days</div></div>
+  </div>
+
+  <div class="section"><h3>Measurements <span class="sp"></span></h3>
+    <table class="tbl"><tr><th>Area</th><th class="num">L ft</th><th class="num">W ft</th><th class="num">H ft</th><th class="num">Floor sf</th><th class="num">Wall sf</th><th>How measured</th></tr>
+    ${e.measurements.map(m => `<tr><td>${esc(m.area)}</td><td class="num">${f1(m.length_ft)}</td><td class="num">${f1(m.width_ft)}</td><td class="num">${f1(m.height_ft)}</td><td class="num">${f1(m.floor_sqft)}</td><td class="num">${f1(m.wall_sqft)}</td><td class="muted">${esc(m.how_measured)}</td></tr>`).join("")}
+    </table>
+    <p class="muted" style="margin:6px 0 0;font-size:12px">Scale: ${esc(e.scale_reference)}</p>
+  </div>
+
+  <div class="section"><h3>Scope of work</h3><ul class="plain">${e.scope_of_work.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
+
+  ${previewSection()}
+
+  <div class="section"><h3>Materials <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">${e.priced ? "prices updated " + esc(e.priced) : ""}</span><span class="sp"></span>
+    <span class="muted noprint" style="font-size:11px;text-transform:none;letter-spacing:0;font-weight:400">${e.supplier && e.supplier !== $("#supplier").value ? "priced at " + esc(e.supplier) + " · " : ""}prices from</span>
+    <select class="pick noprint" id="supplierPick">${supplierOptions($("#supplier").value, false).replace(/<option value="__other">Other…<\/option>/, "")}</select>
+    <button id="repriceBtn">${e.supplier && e.supplier !== $("#supplier").value ? "↻ Re-price at " + esc($("#supplier").value) : "↻ Update prices"}</button><button data-add="materials">+ line</button></h3>
+    <div id="repriceMsg" class="muted" style="font-size:12px;margin-bottom:6px"></div>
+    <table class="tbl" id="matT"><tr><th>Item</th><th class="num">Qty</th><th>Unit</th><th class="num">Waste %</th><th class="num">Unit $</th><th class="num">Line</th><th></th></tr>
+    ${cats.map(c => `<tr class="cat"><td colspan="7">${esc(c)}</td></tr>` + e.materials.map((m, i) => (m.category || "Other") !== c ? "" : `
+      <tr><td><input data-k="materials.${i}.item" value="${esc(m.item)}"><div class="sub">${esc(m.spec)}${m.takeoff ? " · " + esc(m.takeoff) : ""}</div>${m.price_source ? `<div class="sub src ${/^estimate/i.test(m.price_source) ? "est" : "found"}">$ ${esc(m.price_source)}</div>` : ""}</td>
+      <td class="num"><input class="n" type="number" step="any" data-k="materials.${i}.quantity" value="${m.quantity}"></td>
+      <td><input data-k="materials.${i}.unit" value="${esc(m.unit)}" style="width:70px"></td>
+      <td class="num"><input class="n" type="number" step="any" data-k="materials.${i}.waste_pct" value="${m.waste_pct}" style="width:56px"></td>
+      <td class="num"><input class="n" type="number" step="any" data-k="materials.${i}.unit_cost" value="${m.unit_cost}">${m.was != null && m.was !== m.unit_cost ? `<div class="sub ${m.unit_cost > m.was ? "up" : "down"}">was ${money(m.was)}</div>` : ""}</td>
+      <td class="num" id="ml${i}">${money(matLine(m))}</td>
+      <td><button class="del" data-del="materials.${i}">×</button></td></tr>`).join("")).join("")}
+    </table>
+  </div>
+
+  <div class="section"><h3>Labor <span class="sp"></span><button data-add="labor">+ line</button></h3>
+    <table class="tbl"><tr><th>Trade</th><th>Task</th><th class="num">Hours</th><th class="num">$/hr</th><th class="num">Line</th><th></th></tr>
+    ${e.labor.map((l, i) => `<tr><td><input data-k="labor.${i}.trade" value="${esc(l.trade)}" style="width:130px"></td>
+      <td><input data-k="labor.${i}.task" value="${esc(l.task)}"></td>
+      <td class="num"><input class="n" type="number" step="any" data-k="labor.${i}.hours" value="${l.hours}"></td>
+      <td class="num"><input class="n" type="number" step="any" data-k="labor.${i}.rate" value="${l.rate}"></td>
+      <td class="num" id="ll${i}">${money(labLine(l))}</td>
+      <td><button class="del" data-del="labor.${i}">×</button></td></tr>`).join("")}
+    </table>
+  </div>
+
+  <div class="section"><h3>Other costs <span class="sp"></span><button data-add="other_costs">+ line</button></h3>
+    <table class="tbl"><tr><th>Item</th><th class="num">Cost</th><th></th></tr>
+    ${e.other_costs.map((o, i) => `<tr><td><input data-k="other_costs.${i}.item" value="${esc(o.item)}"></td>
+      <td class="num"><input class="n" type="number" step="any" data-k="other_costs.${i}.cost" value="${o.cost}"></td>
+      <td><button class="del" data-del="other_costs.${i}">×</button></td></tr>`).join("")}
+    </table>
+  </div>
+
+  <div class="section"><h3>Price</h3>
+    <table class="tbl tot">
+      <tr><td>Materials</td><td class="num" id="t_mat"></td></tr>
+      <tr><td>Sales tax on materials <input class="n" type="number" step="any" data-r="tax" value="${rates.tax}"> %</td><td class="num" id="t_tax"></td></tr>
+      <tr><td>Labor</td><td class="num" id="t_lab"></td></tr>
+      <tr><td>Other costs</td><td class="num" id="t_oth"></td></tr>
+      <tr><td><b>Job cost</b></td><td class="num" id="t_cost"></td></tr>
+      <tr><td>Overhead on materials <input class="n" type="number" step="any" data-r="mat_overhead" value="${rates.mat_overhead}"> % <span class="muted noprint" style="font-size:11px">of materials + tax</span></td><td class="num" id="t_moh"></td></tr>
+      <tr><td>Overhead &amp; profit <input class="n" type="number" step="any" data-r="markup" value="${rates.markup}"> % <span class="muted noprint" style="font-size:11px">of job cost</span></td><td class="num" id="t_mk"></td></tr>
+      <tr><td>Contingency <input class="n" type="number" step="any" data-r="contingency" value="${rates.contingency}"> %</td><td class="num" id="t_ct"></td></tr>
+      <tr class="grand"><td>Price to client</td><td class="num" id="t_total"></td></tr>
+    </table>
+  </div>
+
+  <div class="grid2">
+    <div class="section"><h3>Assumptions</h3><ul class="plain">${e.assumptions.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
+    <div class="section"><h3>Exclusions</h3><ul class="plain">${e.exclusions.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
+  </div>
+  <div class="section noprint"><h3>Questions to firm up the price</h3><ul class="plain">${e.questions_for_client.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
+
+  <div class="toolbar">
+    <button class="primary" id="saveBtn">Save</button>
+    <button id="printBtn">Print / PDF</button>
+    ${e.quick ? `<button id="qEdit">✎ Change sizes &amp; work</button>` : ""}
+    <button id="csvBtn">${keyStatus.mobile ? "Share material list (CSV)" : "Material list CSV"}</button>
+    <button id="shopBtn">${keyStatus.mobile ? "Share shopping list" : "Copy shopping list"}</button>
+    <span class="muted" style="align-self:center;font-size:12px">${esc(e._meta?.model || "")} · ${e._meta?.input_tokens || 0} in / ${e._meta?.output_tokens || 0} out tokens</span>
+  </div>`;
+  refreshTotals();
+  $("#client").oninput = ev => doc.client = ev.target.value;
+  $("#address").oninput = ev => doc.address = ev.target.value;
+  $("#saveBtn").onclick = saveEst;
+  $("#repriceBtn").onclick = repriceEst;
+  $("#supplierPick").onchange = ev => { setSupplier(ev.target.value); render(); };
+  $("#printBtn").onclick = printPage;
+  $("#csvBtn").onclick = csv;
+  $("#shopBtn").onclick = shopList;
+  if ($("#qEdit")) $("#qEdit").onclick = () => { const q = est.quick; est = null; openQuick(q); };
+  wirePreview();
+}
+const f1 = n => (+n ? (+n).toFixed(1) : "-");
+
+function previewSection() {
+  return `
+  <div class="section" id="pvSec"><h3>Preview for the client</h3>
+    <div class="noprint">
+      <div class="pvpick" id="pvPick"></div>
+      <div class="pvrow">
+        <div><label style="margin-top:0">What the finished room looks like <button class="mic" data-talk="pvPrompt" title="Say how it should look">🎤 Talk</button></label>
+          <div class="talkmsg" id="talkmsg-pvPrompt"></div>
+          <textarea id="pvPrompt" placeholder="e.g. kitchen, white shaker cabinets, white quartz countertops, subway tile backsplash, light oak floor">${esc(lookText())}</textarea>
+          <div class="chips">${LOOKS.map(([n], i) => `<button data-look="${i}">${esc(n)}</button>`).join("")}</div></div>
+        <div><label>Change <span class="muted" id="pvAmtV"></span></label>
+          <input type="range" id="pvAmt" min="0.4" max="0.85" step="0.05" value="${pvAmt}">
+          <div class="muted" style="font-size:11px;display:flex;justify-content:space-between"><span>keep the room</span><span>new look</span></div>
+          <button class="primary" id="pvGo" style="width:100%;margin-top:8px">🎨 Make preview</button></div>
+      </div>
+      <div id="pvMsg" class="muted" style="font-size:12px;margin-top:6px"></div>
+    </div>
+    <div class="pvlist" id="pvList"></div>
+  </div>
+`;
+}
+// "Just show what it will look like": the preview on its own, no estimate or API key needed
+// one-tap starting points for the description; tap one, then edit it
+const LOOKS = [
+  ["White kitchen", "kitchen, white shaker cabinets, white quartz countertops, white subway tile backsplash, brushed nickel hardware, light oak floor"],
+  ["Modern kitchen", "modern kitchen, flat-panel navy cabinets, white quartz countertops, matte black hardware and faucet, large format tile floor"],
+  ["Spa bathroom", "bathroom, large gray porcelain wall tile, walk-in glass shower, floating white oak vanity, matte black fixtures"],
+  ["Classic bathroom", "bathroom, white subway tile tub surround, white shaker vanity, chrome fixtures, hexagon tile floor"],
+  ["New floors & paint", "room, light oak luxury vinyl plank floor, soft white walls, white trim and baseboards"],
+  ["Finished basement", "finished basement, painted drywall, recessed lighting, light gray vinyl plank floor, white trim"],
+  ["Deck", "new deck, gray composite decking, black aluminum railing, wide stairs"],
+  ["Siding & windows", "house exterior, white board and batten siding, black windows, black gutters, wood front door"],
+];
+
+// 📸: camera straight into the preview (on the phone the camera opens directly)
+$("#snapBtn").onclick = () => $("#snapFile").click();
+$("#snapFile").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  let f;
+  try { f = await shrink(file); } catch { return alert("Couldn't read that picture."); }
+  files.push(f); drawThumbs();
+  if (est && !est._previewOnly) $("#pvSec").scrollIntoView({behavior: "smooth"});
+  else previewOnly();
+  pvSrc = f.preview; drawPreviews();
+  const box = $("#pvPrompt");
+  box.scrollIntoView({behavior: "smooth", block: "center"});
+  if (box.value.trim()) makePreview();   // already know the look: go
+  else box.focus();                       // else say what it should look like, or tap a style
+};
+
+function previewOnly() {
+  if (est && !est._previewOnly) return $("#pvSec").scrollIntoView({behavior: "smooth"});
+  if (!est) {
+    est = {_previewOnly: true, project_title: "", job_type: $("#job_type").value, scope_of_work: [], previews: [],
+           finished_look: $("#notes").value.trim(), materials: [], labor: [], other_costs: []};
+    doc = {id: "", client: "", address: ""};
+  }
+  render();
+}
+function renderPreviewOnly() {
+  est.project_title = "Preview - " + (est.job_type || "finished room");  // the saved list shows the client beside it
+  $("#out").innerHTML = `
+  <div id="printhead"><b style="font-size:16px">${esc(rates.company)}</b><br>${esc(doc.client)} ${doc.address ? "· " + esc(doc.address) : ""}</div>
+  <div class="title-row"><h2>What the finished job will look like</h2><span class="pill">${esc(est.job_type)}</span></div>
+  <p class="muted noprint" style="margin:4px 0 12px">Made on this PC by your image generator - no estimate or API key needed. Hit <b>Estimate this job</b> later and these previews carry over.</p>
+  <div class="row noprint" style="margin-bottom:12px">
+    <input id="client" placeholder="Client name" value="${esc(doc.client)}">
+    <input id="address" placeholder="Job address" value="${esc(doc.address)}">
+  </div>
+  ${previewSection()}
+  <div class="toolbar">
+    <button class="primary" id="saveBtn">Save</button>
+    <button id="printBtn">Print / PDF</button>
+  </div>`;
+  $("#client").oninput = ev => doc.client = ev.target.value;
+  $("#address").oninput = ev => doc.address = ev.target.value;
+  $("#saveBtn").onclick = saveEst;
+  $("#printBtn").onclick = printPage;
+  wirePreview();
+}
+$("#pvOnly").onclick = previewOnly;
+
+function refreshTotals() {
+  const t = totals();
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  set("#t_mat", money(t.mat)); set("#t_tax", money(t.tax)); set("#t_lab", money(t.lab)); set("#t_oth", money(t.oth));
+  set("#t_cost", money(t.cost)); set("#t_moh", money(t.matOh)); set("#t_mk", money(t.markup)); set("#t_ct", money(t.cont)); set("#t_total", money(t.total));
+  set("#k_total", money0(t.total)); set("#k_mat", money0(t.mat + t.tax)); set("#k_lab", money0(t.lab)); set("#k_hrs", t.hours.toFixed(0));
+  est.materials.forEach((m, i) => set("#ml" + i, money(matLine(m))));
+  est.labor.forEach((l, i) => set("#ll" + i, money(labLine(l))));
+  return t;
+}
+
+// edits: data-k="list.index.field" writes into est; data-r writes a rate
+$("#out").addEventListener("input", ev => {
+  const k = ev.target.dataset.k, r = ev.target.dataset.r;
+  if (k) {
+    const [list, i, field] = k.split(".");
+    est[list][+i][field] = ev.target.type === "number" ? +ev.target.value : ev.target.value;
+    refreshTotals();
+  } else if (r) { rates[r] = +ev.target.value; LSset("je_rates", rates); refreshTotals(); }
+});
+$("#out").addEventListener("click", ev => {
+  const d = ev.target.dataset;
+  if (d.del) { const [list, i] = d.del.split("."); est[list].splice(+i, 1); render(); }
+  if (d.add) {
+    const blank = {materials: {category: "Added", item: "New item", spec: "", quantity: 1, unit: "ea", unit_cost: 0, waste_pct: 0, takeoff: "", price_source: "entered by hand"},
+                   labor: {trade: "Carpenter", task: "", hours: 0, rate: +$("#labor_rate").value || 75},
+                   other_costs: {item: "", cost: 0}}[d.add];
+    est[d.add].push(blank); render();
+  }
+});
+
+// re-price the current material list from the supplier without redoing the takeoff
+async function repriceEst() {
+  if (!est.materials.length) return;
+  const btn = $("#repriceBtn"), before = totals().total, t0 = Date.now();
+  btn.disabled = true; busy(true);
+  const tick = setInterval(() => { const m = $("#repriceMsg"); if (m) m.textContent = `Checking ${$("#supplier").value || "supplier"} prices for ${est.materials.length} items… ${Math.round((Date.now() - t0) / 1000)}s`; }, 1000);
+  try {
+    const r = await fetch("/api/reprice", {method: "POST", headers: H,
+      body: JSON.stringify({materials: est.materials.map(({item, spec, unit, unit_cost}) => ({item, spec, unit, unit_cost})),
+        settings: {supplier: $("#supplier").value, location: $("#location").value, price_list: $("#price_list").value}})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    let changed = 0;
+    for (const p of j.prices) {
+      const m = est.materials[p.index];
+      if (!m || !(p.unit_cost >= 0)) continue;
+      if (p.unit_cost !== m.unit_cost) { m.was = m.unit_cost; changed++; }
+      m.unit_cost = p.unit_cost; m.price_source = p.price_source;
+    }
+    est.priced = j.priced; est.supplier = $("#supplier").value;
+    render();
+    const diff = totals().total - before;
+    $("#repriceMsg").textContent = `${changed} of ${est.materials.length} prices changed · job price ${diff >= 0 ? "+" : "−"}${money(Math.abs(diff))}. Save to keep them.`;
+  } catch (e) {
+    const m = $("#repriceMsg"); if (m) m.innerHTML = `<span class="err">${esc(e.message)}</span>`;
+  } finally { clearInterval(tick); const b = $("#repriceBtn"); if (b) b.disabled = false; busy(false); }
+}
+
+async function saveEst() {
+  const t = totals();
+  const r = await fetch("/api/save", {method: "POST", headers: H,
+    body: JSON.stringify({id: doc.id, client: doc.client, address: doc.address, rates, estimate: est, total: t.total, saved: new Date().toLocaleString()})});
+  const j = await r.json();
+  doc.id = j.id; $("#saveBtn").textContent = "Saved ✓"; setTimeout(() => { const b = $("#saveBtn"); if (b) b.textContent = "Save"; }, 1500);
+  loadSaved();
+}
+async function loadSaved() {
+  const rows = await fetch("/api/estimates").then(r => r.json()).catch(() => []);
+  $("#saved").innerHTML = rows.length ? rows.map(r => `<div data-id="${esc(r.id)}"><span>${esc(r.title)}${r.client ? " · " + esc(r.client) : ""}</span><span class="muted">${r.total ? money0(r.total) : "🎨 preview"}</span></div>`).join("") : `<span class="muted">None yet.</span>`;
+}
+$("#saved").onclick = async ev => {
+  const row = ev.target.closest("[data-id]"); if (!row) return;
+  const d = await fetch("/api/estimates/" + row.dataset.id).then(r => r.json());
+  est = d.estimate; doc = {id: d.id, client: d.client || "", address: d.address || ""};
+  if (d.rates) rates = Object.assign(rates, d.rates);
+  render();
+};
+loadSaved();
+
+// ---- "after" preview: the local image generator repaints a room photo with the new finishes
+let pvSrc = null, pvAmt = LS("je_pv_amt") || 0.7, pvBusy = false;
+// the photos dropped in this session, or (for a reopened estimate) the ones previews were made from
+const roomPhotos = () => { const f = files.filter(f => f.preview).map(f => f.preview);
+  return f.length ? f : [...new Set((est.previews || []).map(p => p.before))]; };
+function lookText() {
+  if (est._previewOnly) return est.finished_look || "";
+  return est.finished_look || [est.job_type, $("#grade").value + " finishes", ...est.scope_of_work.slice(0, 6)].filter(Boolean).join(", ");
+}
+// resize to what the generator wants: long side 640 (768 runs out of iGPU memory on this
+// laptop and crawls), both sides multiples of 64
+function fitPhoto(url, long = 640) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = long / Math.max(img.width, img.height);
+      const c = document.createElement("canvas");
+      c.width = Math.max(256, Math.round(img.width * k / 64) * 64); c.height = Math.max(256, Math.round(img.height * k / 64) * 64);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      res({url: c.toDataURL("image/jpeg", 0.85), w: c.width, h: c.height});
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+function drawPreviews() {
+  const photos = roomPhotos();
+  if (!photos.includes(pvSrc)) pvSrc = photos[0] || null;
+  $("#pvPick").innerHTML = `<span class="muted" style="font-size:12px">${photos.length ? "Room photo:" : "Add a photo of the room to preview it:"}</span>`
+    + photos.map((u, i) => `<img src="${u}" data-pv="${i}" class="${u === pvSrc ? "on" : ""}">`).join("")
+    + `<button id="pvAdd" style="font-size:12px;padding:4px 9px">+ photo</button><input type="file" id="pvFile" accept="image/*" hidden>`;
+  $("#pvList").innerHTML = (est.previews || []).map((p, i) => `<div>
+    <div class="cmp"><img src="${p.after}"><img class="b" src="${p.before}" style="clip-path:inset(0 50% 0 0)">
+      <div class="bar" style="left:50%"></div><span class="tag" style="left:6px">Now</span><span class="tag" style="right:6px">After</span>
+      <input type="range" min="0" max="100" value="50"></div>
+    <div class="pvprint"><img src="${p.before}"><img src="${p.after}"></div>
+    <div class="pvcap"><span>Artist's rendering for illustration - final materials and layout per the scope of work.</span>
+      <button class="noprint" data-pvshow="${i}" style="font-size:12px;padding:3px 9px">⛶ Show client</button>
+      <button class="del noprint" data-pvdel="${i}" title="Remove">×</button></div></div>`).join("");
+  $("#pvAmtV").textContent = Math.round(pvAmt * 100) + "%";
+}
+function wirePreview() {
+  drawPreviews();
+  const sec = $("#pvSec");
+  $("#pvPrompt").oninput = e => est.finished_look = e.target.value;
+  $("#pvAmt").oninput = e => { pvAmt = +e.target.value; LSset("je_pv_amt", pvAmt); $("#pvAmtV").textContent = Math.round(pvAmt * 100) + "%"; };
+  $("#pvGo").onclick = makePreview;
+  $("#pvGo").disabled = pvBusy;
+  sec.addEventListener("click", e => {
+    if (e.target.dataset.look != null) {
+      const box = $("#pvPrompt"); box.value = LOOKS[+e.target.dataset.look][1]; est.finished_look = box.value;
+    }
+    else if (e.target.dataset.pv != null) { pvSrc = roomPhotos()[+e.target.dataset.pv]; drawPreviews(); }
+    else if (e.target.id === "pvAdd") $("#pvFile").click();
+    else if (e.target.dataset.pvshow != null) showClient(+e.target.dataset.pvshow);
+    else if (e.target.dataset.pvdel != null) { est.previews.splice(+e.target.dataset.pvdel, 1); drawPreviews(); }
+  });
+  sec.addEventListener("change", async e => {
+    if (e.target.id !== "pvFile" || !e.target.files[0]) return;
+    const f = await shrink(e.target.files[0]); files.push(f); drawThumbs(); pvSrc = f.preview; drawPreviews();
+  });
+}
+// before/after compare: drag the hidden range input across the picture
+document.addEventListener("input", e => {
+  const c = e.target.closest(".cmp"); if (!c) return;
+  const v = e.target.value;
+  c.querySelector(".b").style.clipPath = `inset(0 ${100 - v}% 0 0)`; c.querySelector(".bar").style.left = v + "%";
+});
+
+// full-screen view to hand the laptop to the client
+let showI = 0;
+function showClient(i) {
+  const list = est.previews || []; if (!list.length) return;
+  showI = (i + list.length) % list.length;
+  const p = list[showI], img = new Image();
+  img.onload = () => $("#showCmp").style.setProperty("--ar", img.width / img.height);
+  img.src = p.after;
+  $("#showCmp").innerHTML = `<img src="${p.after}"><img class="b" src="${p.before}" style="clip-path:inset(0 50% 0 0)">
+    <div class="bar" style="left:50%"></div><span class="tag">Now</span><span class="tag">After</span>
+    <input type="range" min="0" max="100" value="50">`;
+  $("#showCap").innerHTML = `<b>${esc(rates.company)}${doc.client ? " · " + esc(doc.client) : ""}</b>Drag across the picture to see before and after.
+    ${list.length > 1 ? ` &nbsp;·&nbsp; ${showI + 1} of ${list.length}` : ""}<br><span style="font-size:11px">Artist's rendering for illustration - final materials and layout per the scope of work.</span>`;
+  $("#showPrev").hidden = $("#showNext").hidden = list.length < 2;
+  $("#show").hidden = false;
+  $("#show").requestFullscreen?.().catch(() => {});
+}
+function closeShow() { $("#show").hidden = true; if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
+$("#showX").onclick = closeShow;
+$("#showPrev").onclick = () => showClient(showI - 1);
+$("#showNext").onclick = () => showClient(showI + 1);
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) $("#show").hidden = true; });
+document.addEventListener("keydown", e => {
+  if ($("#show").hidden) return;
+  if (e.key === "Escape") closeShow();
+  if (e.key === "ArrowLeft") showClient(showI - 1);
+  if (e.key === "ArrowRight") showClient(showI + 1);
+});
+
+async function makePreview() {
+  if (!pvSrc) return alert("Add a photo of the room first.");
+  const prompt = $("#pvPrompt").value.trim();
+  if (!prompt) return alert("Describe what the finished room should look like.");
+  pvBusy = true; $("#pvGo").disabled = true; busy(true);
+  const t0 = Date.now();
+  const tick = setInterval(async () => {
+    const p = await fetch("/api/preview/progress").then(r => r.json()).catch(() => ({}));
+    const m = $("#pvMsg"); if (!m || !pvBusy) return;
+    const s = Math.round((Date.now() - t0) / 1000);
+    m.textContent = !p.up ? `Starting the image generator… ${s}s` : p.steps ? `Painting the new room… step ${p.step} of ${p.steps} · ${s}s (usually 1-3 minutes)` : `Preparing the photo… ${s}s (usually 1-3 minutes)`;
+    if (keyStatus.mobile) m.textContent += " · keep the app open";
+  }, 1000);
+  try {
+    const ph = await fitPhoto(pvSrc);
+    const r = await fetch("/api/preview", {method: "POST", headers: H,
+      body: JSON.stringify({image: ph.url.split(",")[1], prompt, strength: pvAmt, width: ph.w, height: ph.h})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    const after = (await fitPhoto("data:image/png;base64," + j.image, Math.max(ph.w, ph.h))).url;  // PNG -> smaller JPEG for saving
+    (est.previews = est.previews || []).unshift({before: ph.url, after, prompt, strength: pvAmt});
+    pvBusy = false;
+    drawPreviews();
+    $("#pvMsg").textContent = `Done in ${Math.round((Date.now() - t0) / 1000)}s. Drag across the picture to compare, or hit ⛶ Show client for full screen. Save to keep it.`;
+  } catch (e) {
+    const m = $("#pvMsg"); if (m) m.innerHTML = `<span class="err">${esc(e.message)}</span>`;
+  } finally { clearInterval(tick); pvBusy = false; const b = $("#pvGo"); if (b) b.disabled = false; busy(false); }
+}
+
+// On the phone, outside links (like where to get an API key) open in the phone's browser,
+// where you're signed in, instead of inside the app.
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[href^='https://']");
+  if (!a || !keyStatus.mobile) return;
+  e.preventDefault();
+  fetch("/api/mobile/open", {method: "POST", headers: H, body: JSON.stringify({url: a.href})});
+});
+// Phones: keep the screen on while a preview, estimate or price update runs. If it sleeps, the
+// phone freezes the app (Samsung does within seconds) and the answer is lost.
+let busyCount = 0;
+function busy(on) {
+  busyCount = Math.max(0, busyCount + (on ? 1 : -1));
+  if (keyStatus.mobile) fetch("/api/mobile/busy", {method: "POST", headers: H, body: JSON.stringify({on: busyCount > 0})}).catch(() => {});
+}
+
+// A phone WebView can't print or download, so the app does those through Android's own print
+// (Save as PDF / share) and share screens.
+function printPage() {
+  if (!keyStatus.mobile) return window.print();
+  fetch("/api/mobile/print", {method: "POST", headers: H, body: JSON.stringify({title: est?.project_title || "Estimate"})});
+}
+function download(name, text, type) {
+  if (keyStatus.mobile)
+    return fetch("/api/mobile/share", {method: "POST", headers: H, body: JSON.stringify({name, text, mime: type})});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function csv() {
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = [["Category", "Item", "Spec", "Qty", "Waste %", "Buy qty", "Unit", "Unit cost", "Line total", "Price source"]];
+  est.materials.forEach(m => rows.push([m.category, m.item, m.spec, m.quantity, m.waste_pct, Math.ceil(m.quantity * (1 + m.waste_pct / 100)), m.unit, m.unit_cost, matLine(m).toFixed(2), m.price_source || ""]));
+  rows.push([]); rows.push(["Labor", "Task", "", "Hours", "", "", "", "Rate", "Line total"]);
+  est.labor.forEach(l => rows.push([l.trade, l.task, "", l.hours, "", "", "", l.rate, labLine(l).toFixed(2)]));
+  const name = (est.project_title || "estimate").replace(/[^\w -]/g, "").slice(0, 60);
+  download(name + ".csv", rows.map(r => r.map(q).join(",")).join("\r\n"), "text/csv");
+}
+function shopList() {
+  const lines = [];
+  for (const c of [...new Set(est.materials.map(m => m.category || "Other"))]) {
+    lines.push(c.toUpperCase());
+    est.materials.filter(m => (m.category || "Other") === c).forEach(m =>
+      lines.push(`  [ ] ${Math.ceil(m.quantity * (1 + m.waste_pct / 100))} ${m.unit} - ${m.item}${m.spec ? " (" + m.spec + ")" : ""}`));
+  }
+  if (keyStatus.mobile) return download("Shopping list.txt", lines.join("\n"), "text/plain");  // the share sheet
+  navigator.clipboard.writeText(lines.join("\n")).then(() => { $("#shopBtn").textContent = "Copied ✓"; setTimeout(() => $("#shopBtn").textContent = "Copy shopping list", 1500); });
+}
+
+$("#newBtn").onclick = () => { files = []; drawThumbs(); $("#notes").value = ""; est = null;
+  $("#out").innerHTML = `<div id="empty"><div class="big">📐</div>Add photos or plans, describe the job, and hit <b>Estimate this job</b>.</div>`; };
+</script>
+</body>
+</html>
